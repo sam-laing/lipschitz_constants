@@ -1,0 +1,26 @@
+dataset: "cifar10_5k"
+seed: 42
+num_workers: 4
+
+model: "mlp"
+#hidden dim as proportion of input dim
+hidden_dim: 2.5
+separate_biases: true #playing with consuming bias into weights with [W|b][x|1]... maybe eliminates need for 2 optimizers
+batch_size: "full" 
+#optimizer cfg
+optimizer: "muon"
+momentum: 0.0
+nesterov: false
+orthogonalize: true
+ns_steps: 5
+lr: 0.0001
+beta1: 0.0
+beta2: 0.0
+eps: 1.e-8
+weight_decay: 0.0
+adjust_lr: true
+scheduler: null
+
+track_lipschitz: true
+
+wandb_project_name: "lipschitz_track"
