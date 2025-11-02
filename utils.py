@@ -37,37 +37,41 @@ def config_to_ns(cfg: Dict[str, Any]) -> SimpleNamespace:
     return SimpleNamespace(**cfg)
 
 
-def init_wandb(cfg: SimpleNamespace, job_idx: int = 0):
+def maybe_init_wandb(cfg: SimpleNamespace, job_idx: int = 0):
     """
-    Initialize Weights & Biases logging.
+    initialize Weights & Biases logging.
 
     set basically everything in the config as a tag
-
-    
     
     """
-    os.environ["WANDB__SERVICE_WAIT"] = "600"
-    os.environ["WANDB_SILENT"] = "true"
+    use_wandb = cfg.wandb_project_name is not None
+    if use_wandb:
+      os.environ["WANDB__SERVICE_WAIT"] = "600"
+      os.environ["WANDB_SILENT"] = "true"
 
-    wandb_run_name = f"{cfg.optim}, {cfg.lr}, {cfg.scheduler}, {cfg.seed}"
+      wandb_run_name = f"{cfg.optimizer},"
+      if not cfg.orthogonalize:
+         wandb_run_name += f"ns={cfg.ns_steps},"
 
-    wandb.init(
-        project=cfg.wandb_project_name,
-        config=vars(cfg),
-        name=wandb_run_name,
-        tags = [
-            f"job_{job_idx}",
-            f"optim_{cfg.optimizer}",
-            f"sched_{cfg.scheduler}",
-            f"lr_{cfg.lr}", 
-            f"momentum_{cfg.momentum}",
-            f"weight_decay_{cfg.weight_decay}",
-            f"seed_{cfg.seed}", 
-            f"beta1_{cfg.beta1}",
-            f"beta2_{cfg.beta2}",
-            f"batch_size_{cfg.batch_size}",   
-        ]
-    )
+      wandb_run_name += f"lr={cfg.lr}, hd={cfg.hidden_dim}, seed={cfg.seed}"
+
+      wandb.init(
+          project=cfg.wandb_project_name,
+          config=vars(cfg),
+          name=wandb_run_name,
+          tags = [
+              f"job_{job_idx}",
+              f"optim_{cfg.optimizer}",
+              f"sched_{cfg.scheduler}",
+              f"lr_{cfg.lr}", 
+              f"momentum_{cfg.momentum}",
+              f"weight_decay_{cfg.weight_decay}",
+              f"seed_{cfg.seed}", 
+              f"beta1_{cfg.beta1}",
+              f"beta2_{cfg.beta2}",
+              f"batch_size_{cfg.batch_size}",   
+          ]
+      )
 
 def log(cfg, metrics, step):
     """
