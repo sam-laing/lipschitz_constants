@@ -1,10 +1,16 @@
 import torch 
 import torch.nn as nn 
-import time
 
 from data import cifar10_5k_make_loaders   
 from engine import Engine 
-from utils import load_config, maybe_init_wandb, config_to_ns
+from utils import (
+    load_config, 
+    maybe_init_wandb, 
+    config_to_ns,
+    log_training_metrics,
+    log_validation_metrics,
+    log_test_summary
+)
 from models import build_model
 import wandb
 import argparse
@@ -19,7 +25,8 @@ def main(config_path: str, job_idx: int = 0):
 
     # Initialize W&B
     use_wandb = bool(getattr(cfg, "wandb_project_name", None))
-    maybe_init_wandb(cfg, job_idx=job_idx)
+    if use_wandb:
+        maybe_init_wandb(cfg, job_idx=job_idx)
 
     train_loader, val_loader, test_loader = cifar10_5k_make_loaders(cfg)
     model = build_model(cfg)
@@ -37,28 +44,27 @@ def main(config_path: str, job_idx: int = 0):
         for key, value in train_metrics.items():
             print(f"  {key}: {value}")
         
+        # Log to W&B
+        if use_wandb:
+            log_training_metrics(
+                train_metrics, 
+                step=engine.iteration,
+                log_lipschitz=cfg.track_lipschitz
+            )
 
+        # Validation
         val_metrics = engine.eval(val_loader)
         print(f"Validation metrics: {val_metrics}")
         
         if use_wandb:
-            wandb.log({
-                "train/loss": float(train_metrics["loss"]),
-            }, step=engine.iteration)
-
-            wandb.log({
-                "val/loss": float(val_metrics["loss"]),
-                "val/accuracy": float(val_metrics["accuracy"]),
-            }, step=engine.iteration)
+            log_validation_metrics(val_metrics, step=engine.iteration)
     
-    #test set eval
+    # Test set eval
     test_metrics = engine.eval(test_loader)
     print(f"Test metrics: {test_metrics}")
     
     if use_wandb:
-        # Log as summary only (shows in run table, no chart mixing scales)
-        wandb.run.summary["test_loss"] = float(test_metrics["loss"])
-        wandb.run.summary["test_accuracy"] = float(test_metrics["accuracy"])
+        log_test_summary(test_metrics)
         wandb.finish()
 
 if __name__ == "__main__":

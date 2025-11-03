@@ -1,8 +1,8 @@
 dataset: "cifar10_5k"
-seed: 101
+seed: 203
 num_workers: 4
 
-iters: 100
+iters: 150
 
 model: "mlp"
 #hidden dim as proportion of input dim
@@ -23,6 +23,6 @@ weight_decay: 0.0
 adjust_lr: true
 scheduler: null
 
-track_lipschitz: false
-
+track_lipschitz: true
 wandb_project_name: "lipschitz_track_test"
+

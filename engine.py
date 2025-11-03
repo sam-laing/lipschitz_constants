@@ -67,7 +67,7 @@ class Engine(nn.Module):
             new_loss.backward()
             self.grads_Wkp1 = { name: p.grad.detach().clone() for name, p in self.model.named_parameters() }
 
-            constants_dict = self.compute_grad_stats(norm_types=["2", "spec"])
+            constants_dict = self.compute_grad_stats(norm_types=["1", "2", "inf", "frob", "spec"])
             metrics_dict.update(constants_dict)
             #weight update
             self.prev_weights = self.updated_weights
@@ -97,14 +97,28 @@ class Engine(nn.Module):
         }
         return metrics_dict
 
-    def compute_grad_stats(self, norm_types=["2"]) -> Dict[str, Any]:
+    def compute_grad_stats(self, norm_types=["1", "2", "inf", "frob", "spec"]) -> Dict[str, Any]:
         """
-        Compute Lipschitz proxies per-parameter using precise SVD-based norms.
-        Returns layerwise estimates for L2 (vectorized Frobenius) and spec (operator/nuclear).
+        Compute Lipschitz proxies with proper norm duality:
+        - L_∞ on weights ↔ L_1 on gradients
+        - L_1 on weights ↔ L_∞ on gradients
+        - L_2 (Frobenius) on weights ↔ L_2 (Frobenius) on gradients (self-dual)
+        - Spectral (operator) on weights ↔ Nuclear on gradients
+        
+        Uses precise SVD for spectral/nuclear norms.
         """
+        # Norm duality mapping
+        dual_map = {
+            "1": "inf",      # L1 dual is L∞
+            "inf": "1",      # L∞ dual is L1
+            "2": "2",        # L2 is self-dual
+            "frob": "frob",  # Frobenius is self-dual
+            "spec": "nuc",   # Spectral dual is Nuclear
+        }
+        
         stats_dict = {
-            "lipschitz_layerwise": {"L2": {}, "spec": {}},
-            "grad_layerwise": {"L2": {}, "spec": {}}
+            "lipschitz_layerwise": {nt: {} for nt in norm_types},
+            "grad_layerwise": {nt: {} for nt in norm_types}
         }
         
         for name, _ in self.named_params:
@@ -116,36 +130,76 @@ class Engine(nn.Module):
 
             delta_grad = grad_Wkp1 - grad_Wk
             delta_W = Wkp1 - Wk
+            
+            is_matrix = (delta_W.ndim == 2)
+            
+            # Precompute SVD for spectral/nuclear (only once per tensor)
+            svd_cache = {}
+            if is_matrix and "spec" in norm_types:
+                svd_cache["delta_W"] = torch.linalg.svdvals(delta_W.float())
+                svd_cache["delta_grad"] = torch.linalg.svdvals(delta_grad.float())
+                svd_cache["grad_Wk"] = torch.linalg.svdvals(grad_Wk.float())
 
-            # --- L2 (vectorized Frobenius) ---
-            denom_l2 = torch.norm(delta_W.reshape(-1), p=2)
-            lipschitz_2 = (torch.norm(delta_grad.reshape(-1), p=2) / denom_l2).item() if denom_l2 > 0 else float('inf')
-            grad_norm_2 = torch.norm(grad_Wk.reshape(-1), p=2).item()
-
-            stats_dict["lipschitz_layerwise"]["L2"][param_name] = lipschitz_2
-            stats_dict["grad_layerwise"]["L2"][param_name] = grad_norm_2
-
-            # --- Spectral/Nuclear (only for 2D matrices) ---
-            if delta_W.ndim == 2 and "spec" in norm_types:
-                # Compute singular values once for both norms
-                S_grad = torch.linalg.svdvals(delta_grad.float())  # [min(m,n)]
-                S_W = torch.linalg.svdvals(delta_W.float())
-
-                # Operator norm = max singular value
-                spec_norm_W = S_W[0].item() if S_W.numel() > 0 else 0.0
-                # Nuclear norm = sum of singular values
-                nuclear_norm_grad = S_grad.sum().item()
-
-                lipschitz_spec = (nuclear_norm_grad / spec_norm_W) if spec_norm_W > 0 else float('inf')
-
-                # Grad spectral: nuclear norm of grad_Wk
-                S_grad_k = torch.linalg.svdvals(grad_Wk.float())
-                spec_norm_grad = S_grad_k.sum().item()
-
-                stats_dict["lipschitz_layerwise"]["spec"][param_name] = lipschitz_spec
-                stats_dict["grad_layerwise"]["spec"][param_name] = spec_norm_grad
-            else:
-                stats_dict["lipschitz_layerwise"]["spec"][param_name] = None
-                stats_dict["grad_layerwise"]["spec"][param_name] = None
+            for norm_type in norm_types:
+                dual_norm = dual_map[norm_type]
+                
+                # Compute weight norm (denominator)
+                if norm_type == "1":
+                    weight_norm = torch.norm(delta_W.reshape(-1), p=1)
+                elif norm_type == "inf":
+                    weight_norm = torch.norm(delta_W.reshape(-1), p=float('inf'))
+                elif norm_type == "2":
+                    weight_norm = torch.norm(delta_W.reshape(-1), p=2)
+                elif norm_type == "frob":
+                    if is_matrix:
+                        weight_norm = torch.linalg.norm(delta_W, ord='fro')
+                    else:
+                        weight_norm = torch.norm(delta_W.reshape(-1), p=2)
+                elif norm_type == "spec":
+                    if is_matrix:
+                        # Spectral = largest singular value
+                        weight_norm = svd_cache["delta_W"][0] if svd_cache["delta_W"].numel() > 0 else torch.tensor(0.0)
+                    else:
+                        weight_norm = None
+                
+                # Compute gradient norm (numerator - using DUAL norm)
+                if dual_norm == "1":
+                    grad_norm = torch.norm(delta_grad.reshape(-1), p=1)
+                    grad_Wk_norm = torch.norm(grad_Wk.reshape(-1), p=1)
+                elif dual_norm == "inf":
+                    grad_norm = torch.norm(delta_grad.reshape(-1), p=float('inf'))
+                    grad_Wk_norm = torch.norm(grad_Wk.reshape(-1), p=float('inf'))
+                elif dual_norm == "2":
+                    grad_norm = torch.norm(delta_grad.reshape(-1), p=2)
+                    grad_Wk_norm = torch.norm(grad_Wk.reshape(-1), p=2)
+                elif dual_norm == "frob":
+                    if is_matrix:
+                        grad_norm = torch.linalg.norm(delta_grad, ord='fro')
+                        grad_Wk_norm = torch.linalg.norm(grad_Wk, ord='fro')
+                    else:
+                        grad_norm = torch.norm(delta_grad.reshape(-1), p=2)
+                        grad_Wk_norm = torch.norm(grad_Wk.reshape(-1), p=2)
+                elif dual_norm == "nuc":
+                    if is_matrix:
+                        # Nuclear = sum of singular values
+                        grad_norm = svd_cache["delta_grad"].sum()
+                        grad_Wk_norm = svd_cache["grad_Wk"].sum()
+                    else:
+                        grad_norm = None
+                        grad_Wk_norm = None
+                
+                # Compute Lipschitz estimate
+                if weight_norm is not None and grad_norm is not None:
+                    if weight_norm > 0:
+                        lipschitz = (grad_norm / weight_norm).item()
+                    else:
+                        lipschitz = float('inf')
+                    
+                    stats_dict["lipschitz_layerwise"][norm_type][param_name] = lipschitz
+                    stats_dict["grad_layerwise"][norm_type][param_name] = grad_Wk_norm.item() if torch.is_tensor(grad_Wk_norm) else grad_Wk_norm
+                else:
+                    # Non-matrix parameters don't support spectral/nuclear
+                    stats_dict["lipschitz_layerwise"][norm_type][param_name] = None
+                    stats_dict["grad_layerwise"][norm_type][param_name] = None
 
         return stats_dict
