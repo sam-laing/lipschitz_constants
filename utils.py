@@ -48,8 +48,14 @@ def maybe_init_wandb(cfg: SimpleNamespace, job_idx: int = 0):
         os.environ["WANDB_SILENT"] = "true"
 
         wandb_run_name = f"{cfg.optimizer},"
-        if not cfg.orthogonalize:
+        if cfg.orthogonalize and cfg.optimizer == "muon":
+            wandb_run_name += "ortho,"
+        elif not cfg.orthogonalize and cfg.optimizer == "muon":
             wandb_run_name += f"ns={cfg.ns_steps},"
+        if cfg.precon_nuclear and cfg.optimizer == "muon":
+            wandb_run_name += "precon_nuc,"
+
+
         if cfg.momentum != 0.0:
             wandb_run_name += f"mom={cfg.momentum},"
 
@@ -69,7 +75,8 @@ def maybe_init_wandb(cfg: SimpleNamespace, job_idx: int = 0):
                 f"seed_{cfg.seed}", 
                 f"beta1_{cfg.beta1}",
                 f"beta2_{cfg.beta2}",
-                f"batch_size_{cfg.batch_size}",   
+                f"batch_size_{cfg.batch_size}",  
+                f"precon_nuclear_{cfg.precon_nuclear}" if hasattr(cfg, "precon_nuclear") else "precon_nuclear_False"
             ]
         )
 
@@ -132,7 +139,21 @@ def log_validation_metrics(metrics_dict: Dict[str, Any], step: int):
     wandb.log(logs, step=step)
 
 
-def log_test_summary(metrics_dict: Dict[str, Any]):
-    """Log final test metrics to W&B summary."""
+def log_test_summary(metrics_dict: Dict[str, Any], final_step: int):
+    """
+    Log final test metrics to W&B.
+    Logs as both regular metrics (for charts) and summary (for tables).
+    
+    Args:
+        metrics_dict: Dict with 'loss' and 'accuracy'
+        final_step: Final training iteration (for x-axis positioning)
+    """
+    # Log as regular metrics (creates charts/bar charts)
+    wandb.log({
+        "test/loss": float(metrics_dict["loss"]),
+        "test/accuracy": float(metrics_dict["accuracy"]),
+    }, step=final_step)
+    
+    # Also log to summary for easy comparison in workspace table
     wandb.run.summary["test_loss"] = float(metrics_dict["loss"])
     wandb.run.summary["test_accuracy"] = float(metrics_dict["accuracy"])
