@@ -34,9 +34,9 @@ class Engine(nn.Module):
     
     def step(self, x,y):
         self.model.train()
+        
 
         x, y = x.to(self.device), y.to(self.device)
-        
         for opt in self.optimizer:
             opt.zero_grad()
         

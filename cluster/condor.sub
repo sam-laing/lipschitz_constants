@@ -6,7 +6,7 @@ executable=/home/slaing/muon_research/lipschitz_constants/cluster/run.sh
 
 # Job specific vars
 config=/home/slaing/muon_research/lipschitz_constants/config/config.yaml
-n_jobs=5
+n_jobs=6
 
 # Args
 arguments = $(config) $(Process)

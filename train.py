@@ -15,6 +15,7 @@ from models import build_model
 import wandb
 import argparse
 from types import SimpleNamespace
+#from tml_tests import evaluate_model
 
 def main(config_path: str, job_idx: int = 0):
     cfg_dict = load_config(config_path, job_idx=job_idx)               
@@ -23,7 +24,6 @@ def main(config_path: str, job_idx: int = 0):
         torch.manual_seed(cfg.seed)
         torch.cuda.manual_seed_all(cfg.seed)
 
-    # Initialize W&B
     use_wandb = bool(getattr(cfg, "wandb_project_name", None))
     if use_wandb:
         maybe_init_wandb(cfg, job_idx=job_idx)
@@ -32,7 +32,6 @@ def main(config_path: str, job_idx: int = 0):
     model = build_model(cfg)
     engine = Engine(model=model, cfg=cfg)
 
-    # Training loop
     for i in range(cfg.iters):
         print(f"iter {i+1}/{cfg.iters}")
         
@@ -62,9 +61,13 @@ def main(config_path: str, job_idx: int = 0):
     # Test set eval
     test_metrics = engine.eval(test_loader)
     print(f"Test metrics: {test_metrics}")
-    
+    """ 
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    tml_dict = evaluate_model(model, test_loader, cfg, device )
+    print(tml_dict) 
+    """ 
     if use_wandb:
-        log_test_summary(test_metrics)
+        log_test_summary(test_metrics, final_step=engine.iteration)
         wandb.finish()
 
 if __name__ == "__main__":

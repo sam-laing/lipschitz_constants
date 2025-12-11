@@ -3,7 +3,7 @@ import torch
 def init_optimizer(cfg, model):
     if cfg.optimizer == 'muon':
         from optim.muon import Muon
-        if cfg.separate_biases:
+        if cfg.seperate_biases:
             biases = []
             non_biases = []
             for name, param in model.named_parameters():
@@ -20,7 +20,8 @@ def init_optimizer(cfg, model):
                 ns_steps=cfg.ns_steps,
                 orthogonalize=cfg.orthogonalize,
                 weight_decay=cfg.weight_decay,
-                adjust_lr=cfg.adjust_lr
+                adjust_lr=cfg.adjust_lr, 
+                precon_nuclear=cfg.precon_nuclear
             )
             adamw_optimizer = torch.optim.AdamW(
                 biases,
@@ -39,12 +40,13 @@ def init_optimizer(cfg, model):
                 ns_steps=cfg.ns_steps,
                 orthogonalize=cfg.orthogonalize,
                 weight_decay=cfg.weight_decay,
-                adjust_lr=cfg.adjust_lr
+                adjust_lr=cfg.adjust_lr, 
+                precon_nuclear=cfg.precon_nuclear
             )
             return muon_optimizer
     elif cfg.optimizer == "kj_muon":   
         from optim.kj_muon import Muon
-        if cfg.separate_biases:
+        if cfg.seperate_biases:
             biases = []
             non_biases = []
             for name, param in model.named_parameters():

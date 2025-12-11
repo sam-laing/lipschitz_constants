@@ -114,8 +114,7 @@ class Muon(torch.optim.Optimizer):
                     #precondition with nuclear norm
                     U, S, Vh = get_svd(g.reshape(len(g), -1), eps=self.eps)
                     nuclear_norm = S.abs().sum()
-                    if nuclear_norm > 0:
-                        effective_lr *= nuclear_norm
+                    effective_lr *= nuclear_norm if nuclear_norm > 0 else 1.0
 
                 
                 if self.weight_decay > 0:

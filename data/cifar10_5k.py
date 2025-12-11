@@ -4,7 +4,7 @@ import torchvision
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
-
+from torchvision.datasets import CIFAR10
 
 
 class CIFAR10_5k(Dataset):
@@ -36,6 +36,7 @@ class CIFAR10_5k(Dataset):
             image = self.transform(image)
         image = image.reshape(-1)
         return image, label
+ 
     
 def make_loaders(cfg):
     """  
@@ -50,7 +51,8 @@ def make_loaders(cfg):
         transform = torchvision.transforms.Compose([
             torchvision.transforms.ToTensor(),
             torchvision.transforms.Normalize(mean=[0.4914423, 0.48771504, 0.45364332],
-                                             std=[0.24486475, 0.2414065, 0.26222563]), 
+                                             std=[0.24486475, 0.2414065, 0.26222563]),
+            torchvision.transforms.Lambda(lambda x: x.view(x.size(0), -1))  
             
             ])
 
@@ -108,13 +110,64 @@ def make_loaders(cfg):
         return train_loader, val_loader, test_loader
 
     elif cfg.dataset == 'cifar10':
-        raise NotImplementedError("CIFAR10 loader not implemented yet")
+        data_path = "/fast/slaing/data/vision/cifar10/"
+        transform = torchvision.transforms.Compose([
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize(mean=[0.4914, 0.4822, 0.4465],
+                                             std=[0.2023, 0.1994, 0.2010]), 
+            
+            ])  
+        train_dataset = CIFAR10(root=data_path, train=True, download=False, transform=transform)
+        test_dataset = CIFAR10(root=data_path, train=False, download=False, transform=transform)
+
+        if cfg.seed is not None:
+            np.random.seed(cfg.seed)
+
+        class_indices = {i: [] for i in range(10)}  # CIFAR10 has 10 classes
+        for idx, (_, label) in enumerate(test_dataset):
+            class_indices[label].append(idx)
+        val_indices, test_indices = [], []
+        for class_idx in range(10): 
+            indices = class_indices[class_idx]
+            np.random.shuffle(indices)
+            split = len(indices) // 2
+            val_indices.extend(indices[:split])
+            test_indices.extend(indices[split:])
+        
+        val_dataset = torch.utils.data.Subset(test_dataset, val_indices)
+        test_dataset_final = torch.utils.data.Subset(test_dataset, test_indices)
+
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=cfg.batch_size,
+            shuffle=True,
+            num_workers=cfg.num_workers,
+            pin_memory=True,
+        )
+
+        val_loader = DataLoader(
+            val_dataset,
+            batch_size=len(val_dataset),  # full batch for val
+            shuffle=False,
+            num_workers=cfg.num_workers,
+            pin_memory=True,
+        )
+
+        test_loader = DataLoader(
+            test_dataset_final,
+            batch_size=len(test_dataset_final),  # full batch for test
+            shuffle=False,
+            num_workers=cfg.num_workers,
+            pin_memory=True,
+        )
+
+        return train_loader, val_loader, test_loader
 
 
 if __name__ == "__main__":
 
     cfg = {
-        "dataset": "cifar10_5k",
+        "dataset": "cifar10",
         "batch_size": 64,
         "num_workers": 4,
         "seed": 42
@@ -132,7 +185,7 @@ if __name__ == "__main__":
 
     train_loader, val_loader, test_loader = make_loaders(cfg)
     #count each class in train loader
-    class_counts = [0] * 5
+    class_counts = [0] * 10
     for x, labels in train_loader:
         for label in labels:
             print(x.shape)
@@ -142,13 +195,13 @@ if __name__ == "__main__":
     print("Class distribution in train loader:", class_counts)
 
     #count each class in val loader
-    class_counts = [0] * 5
+    class_counts = [0] * 10
     for _, labels in val_loader:
         for label in labels:
             class_counts[label] += 1
     print("Class distribution in val loader:", class_counts)
     #count each class in test loader
-    class_counts = [0] * 5
+    class_counts = [0] * 10
     for _, labels in test_loader:
         for label in labels:
             class_counts[label] += 1

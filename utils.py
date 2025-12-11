@@ -4,6 +4,10 @@ from types import SimpleNamespace
 from typing import Any, Dict, Optional
 from itertools import product
 import wandb
+import pyhessian   
+
+
+
 
 DEFAULT_PATH = os.path.join(os.path.dirname(__file__), "config.yaml")
 
@@ -59,7 +63,7 @@ def maybe_init_wandb(cfg: SimpleNamespace, job_idx: int = 0):
         if cfg.momentum != 0.0:
             wandb_run_name += f"mom={cfg.momentum},"
 
-        wandb_run_name += f"lr={cfg.lr}, hd={cfg.hidden_dim}, seed={cfg.seed}"
+        wandb_run_name += f"lr={cfg.lr}, hd={cfg.hidden_dim}, sep={cfg.seperate_biases}, seed={cfg.seed}"
 
         wandb.init(
             project=cfg.wandb_project_name,
@@ -76,7 +80,8 @@ def maybe_init_wandb(cfg: SimpleNamespace, job_idx: int = 0):
                 f"beta1_{cfg.beta1}",
                 f"beta2_{cfg.beta2}",
                 f"batch_size_{cfg.batch_size}",  
-                f"precon_nuclear_{cfg.precon_nuclear}" if hasattr(cfg, "precon_nuclear") else "precon_nuclear_False"
+                f"precon_nuclear_{cfg.precon_nuclear}" if hasattr(cfg, "precon_nuclear") else "precon_nuclear_False", 
+                f"sep_biases_{cfg.seperate_biases}" if hasattr(cfg, "seperate_biases") else "sep_biases_True"
             ]
         )
 
