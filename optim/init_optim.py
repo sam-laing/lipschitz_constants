@@ -21,7 +21,7 @@ def init_optimizer(cfg, model):
                 orthogonalize=cfg.orthogonalize,
                 weight_decay=cfg.weight_decay,
                 adjust_lr=cfg.adjust_lr, 
-                precon_nuclear=cfg.precon_nuclear
+                dual_decay=cfg.dual_decay
             )
             adamw_optimizer = torch.optim.AdamW(
                 biases,
@@ -41,10 +41,38 @@ def init_optimizer(cfg, model):
                 orthogonalize=cfg.orthogonalize,
                 weight_decay=cfg.weight_decay,
                 adjust_lr=cfg.adjust_lr, 
-                precon_nuclear=cfg.precon_nuclear
+                dual_decay=cfg.dual_decay
             )
             return muon_optimizer
-    elif cfg.optimizer == "kj_muon":   
+
+        
+    elif cfg.optimizer == 'sign_sgd':
+        from optim.sign_sgd import signSGD
+        sign_sgd_optimizer = signSGD(
+            model.parameters(),
+            lr=cfg.lr,
+            momentum=cfg.momentum,
+            weight_decay=cfg.weight_decay, 
+            dual_decay=cfg.dual_decay
+        )
+        return sign_sgd_optimizer
+    
+    elif cfg.optimizer == "sgd":
+        from optim.sgd import SGD
+        sgd_optimizer = SGD(
+            model.parameters(),
+            lr=cfg.lr,
+            momentum=cfg.momentum,
+            weight_decay=cfg.weight_decay, 
+            dual_decay=cfg.dual_decay
+        )
+        return sgd_optimizer
+    
+
+
+
+    elif cfg.optimizer == "kj_muon":  
+        # just a sanity check to make sure same as keller jordan's 
         from optim.kj_muon import Muon
         if cfg.seperate_biases:
             biases = []
@@ -61,7 +89,8 @@ def init_optimizer(cfg, model):
                 momentum=cfg.momentum,
                 nesterov=cfg.nesterov,
                 ns_steps=cfg.ns_steps,
-                adjust_lr=cfg.adjust_lr
+                adjust_lr=cfg.adjust_lr,
+                dual_decay=cfg.dual_decay
             )
             adamw_optimizer = torch.optim.AdamW(
                 biases,
@@ -80,31 +109,10 @@ def init_optimizer(cfg, model):
                 ns_steps=cfg.ns_steps,
                 orthogonalize=cfg.orthogonalize,
                 weight_decay=cfg.weight_decay,
-                adjust_lr=cfg.adjust_lr
+                adjust_lr=cfg.adjust_lr,
+                dual_decay=cfg.dual_decay
             )
             return muon_optimizer
-
-
-        
-    elif cfg.optimizer == 'sign_sgd':
-        from optim.sign_sgd import signSGD
-        sign_sgd_optimizer = signSGD(
-            model.parameters(),
-            lr=cfg.lr,
-            momentum=cfg.momentum,
-            weight_decay=cfg.weight_decay
-        )
-        return sign_sgd_optimizer
-    
-    elif cfg.optimizer == "sgd":
-        sgd_optimizer = torch.optim.SGD(
-            model.parameters(),
-            lr=cfg.lr,
-            momentum=cfg.momentum,
-            weight_decay=cfg.weight_decay,
-            nesterov=cfg.nesterov
-        )
-        return sgd_optimizer
     
     else:
         raise ValueError(f"Unsupported optimizer: {cfg.optimizer}")

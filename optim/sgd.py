@@ -1,9 +1,11 @@
 import torch
 from torch.optim import Optimizer
 
+# looking for a version of SGD with dual decay option
+# comparing proximal descent vs LMO (LMO would yield normalized sgd)
 
-class signSGD(Optimizer):
-	def __init__(self, params, lr, momentum=0.0, weight_decay=0.1, dual_decay=False):
+class SGD(Optimizer):
+	def __init__(self, params, lr, momentum=0.0, weight_decay=0.1, dual_decay=True):
 		if not 0.0 <= lr:
 			raise ValueError(f'Invaid learing rate: {lr}')
 		if not 0.0 <= momentum or not momentum <= 1.0:
@@ -12,7 +14,7 @@ class signSGD(Optimizer):
 			raise ValueError(f'Invaid weight decay: {weight_decay}')
 
 		defaults = dict(lr=lr, momentum=momentum, weight_decay=weight_decay, dual_decay=dual_decay)
-		super(signSGD, self).__init__(params, defaults)
+		super(SGD, self).__init__(params, defaults)
 
 	@torch.no_grad()
 	def step(self):
@@ -32,17 +34,23 @@ class signSGD(Optimizer):
 
 				# m initialization
 				if 'm' not in param_state:
-					param_state['m'] = torch.zeros_like(p.grad.detach().clone())
-
+					param_state['m'] = p.grad.detach().clone()
 
 				# decay momentum
 				m = param_state['m']
 				m.mul_(momentum).add_(p.grad, alpha=(1.0 - momentum))
 
+				# if not dual decay, normalize the gradient by its norm
 				if dual_decay:
-					# proximal gd gives \ell1 scaling
-					l1norm = m.abs().mean() 
-					alpha *= l1norm
+					#normal gradient descent
+					update = m
+				else:
+					# lmo gives normalized update
+					# take the rms norm
+					norm = m.norm() / (m.numel() ** 0.5)
+					
+					update = m / norm if norm != 0 else m
 
-				# update p
-				p.add_(torch.sign(m), alpha=-alpha)
+				p.add_(update, alpha=-alpha)
+
+				

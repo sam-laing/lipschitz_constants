@@ -4,9 +4,7 @@ from types import SimpleNamespace
 from typing import Any, Dict, Optional
 from itertools import product
 import wandb
-import pyhessian   
-
-
+import pyhessian  
 
 
 DEFAULT_PATH = os.path.join(os.path.dirname(__file__), "config.yaml")
@@ -56,8 +54,8 @@ def maybe_init_wandb(cfg: SimpleNamespace, job_idx: int = 0):
             wandb_run_name += "ortho,"
         elif not cfg.orthogonalize and cfg.optimizer == "muon":
             wandb_run_name += f"ns={cfg.ns_steps},"
-        if cfg.precon_nuclear and cfg.optimizer == "muon":
-            wandb_run_name += "precon_nuc,"
+        if cfg.dual_decay:
+            wandb_run_name += "dual_decay,"
 
 
         if cfg.momentum != 0.0:
@@ -80,7 +78,7 @@ def maybe_init_wandb(cfg: SimpleNamespace, job_idx: int = 0):
                 f"beta1_{cfg.beta1}",
                 f"beta2_{cfg.beta2}",
                 f"batch_size_{cfg.batch_size}",  
-                f"precon_nuclear_{cfg.precon_nuclear}" if hasattr(cfg, "precon_nuclear") else "precon_nuclear_False", 
+                f"dual_decay_{cfg.dual_decay}" if hasattr(cfg, "dual_decay") else "dual_decay_False", 
                 f"sep_biases_{cfg.seperate_biases}" if hasattr(cfg, "seperate_biases") else "sep_biases_True"
             ]
         )

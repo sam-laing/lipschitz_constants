@@ -63,7 +63,7 @@ def orthogonalise(G):
 class Muon(torch.optim.Optimizer):
     def __init__(
             self, params, lr=1e-3, momentum=0, nesterov=False, ns_steps=3, eps=1e-7,
-            orthogonalize=False, weight_decay=0.0, adjust_lr=True, precon_nuclear=False
+            orthogonalize=False, weight_decay=0.0, adjust_lr=True, dual_decay=False
             ):
         if lr < 0.0:
             raise ValueError(f"Invalid learning rate: {lr}")
@@ -78,7 +78,7 @@ class Muon(torch.optim.Optimizer):
         self.eps = eps
         self.weight_decay = weight_decay
         self.adjust_lr = adjust_lr
-        self.precon_nuclear = precon_nuclear
+        self.dual_decay = dual_decay
         super().__init__(params, defaults)
 
     @torch.no_grad()
@@ -110,7 +110,7 @@ class Muon(torch.optim.Optimizer):
                     #as in moonshot: scale learning rate: 0.2 · sqrt(max(A, B)) 
                     effective_lr = 0.2*math.sqrt(max(g.size(-2), g.size(-1)))*lr
 
-                if self.precon_nuclear:
+                if self.dual_decay:
                     #precondition with nuclear norm
                     U, S, Vh = get_svd(g.reshape(len(g), -1), eps=self.eps)
                     nuclear_norm = S.abs().sum()
