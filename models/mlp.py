@@ -1,3 +1,4 @@
+
 import torch
 import torch.nn as nn
 import math
@@ -56,3 +57,4 @@ class MLP(nn.Module):
             if out.shape[0] == 1:
                 return out.squeeze(0)
             return out
+        
