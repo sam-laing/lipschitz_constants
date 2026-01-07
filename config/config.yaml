@@ -1,8 +1,8 @@
 dataset: "cifar10_5k"
-seed: 14
+seed: 62
 num_workers: 4
 
-iters: 50
+iters: 100
 
 model: "mlp"
 #hidden dim as proportion of input dim
@@ -10,19 +10,24 @@ hidden_dim: 2.5
 seperate_biases: false #playing with consuming bias into weights with [W|b][x|1]... maybe eliminates need for 2 optimizers
 batch_size: "full"
 #optimizer cfg
-optimizer: ["muon"]   #, "sgd", "sign_sgd"]
+optimizer: ["sgd"]   #, "sgd", "sign_sgd"]
 momentum: 0.0
 nesterov: false
 orthogonalize: true
 ns_steps: 5
-lr: [0.05, 0.1, 0.2]
+lr: [0.001, 0.003, 0.01, 0.03]
 beta1: 0.0
 beta2: 0.0
 eps: 1.e-8
-weight_decay: 0.1
+weight_decay: 0.0
 adjust_lr: false
-precon_nuclear: [false, true]
+dual_decay: [true]
 scheduler: null
+
+track_hessian: true
+hessian_freq: 1 
+hessian_k: 5
+
 
 track_lipschitz: false
 wandb_project_name: "muon_tml"

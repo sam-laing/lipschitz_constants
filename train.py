@@ -48,7 +48,8 @@ def main(config_path: str, job_idx: int = 0):
             log_training_metrics(
                 train_metrics, 
                 step=engine.iteration,
-                log_lipschitz=cfg.track_lipschitz
+                log_lipschitz=cfg.track_lipschitz, 
+                log_hessian=cfg.track_hessian
             )
 
         # Validation

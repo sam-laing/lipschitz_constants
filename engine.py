@@ -11,7 +11,9 @@ class Engine(nn.Module):
         at each step: need to store previous weights and gradients, then update and get new ones after an optimizer step
     otherwise standard training and val engine to keep train.py script a bit nicer
     """
-    def __init__(self, model, cfg):
+    def __init__(
+        self, model, cfg
+        ):
         super(Engine, self).__init__()
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model = model.to(self.device)
@@ -31,7 +33,10 @@ class Engine(nn.Module):
         if cfg.track_lipschitz:
             #initialize previous weights 
             self.prev_weights = { name: param.clone().detach() for name, param in self.model.named_parameters() }
-    
+        if cfg.track_hessian:
+            self.hessian_stats_freq = cfg.hessian_freq
+            self.hessian_top_k = cfg.hessian_k
+
     def step(self, x,y):
         self.model.train()
         
@@ -72,6 +77,11 @@ class Engine(nn.Module):
             #weight update
             self.prev_weights = self.updated_weights
 
+        if self.cfg.track_hessian and (self.iteration % self.hessian_stats_freq == 0):
+            hessian_dict = self.hessian_stats(x, y, k=self.hessian_top_k)
+            metrics_dict.update(hessian_dict)
+        
+
         self.iteration += 1
         return metrics_dict
 
@@ -96,7 +106,100 @@ class Engine(nn.Module):
             "accuracy": total_correct / len(val_loader.dataset)
         }
         return metrics_dict
+    
+    def hessian_vector_product(self, loss, params, v):
+        """  
+        hvp with autograd
+        v flattened vector matching params
+        """
+        grads = torch.autograd.grad(loss, params, create_graph=True)
+        flat_grads = torch.cat([g.reshape(-1) for g in grads])
+        grad_v = torch.dot(flat_grads, v)
+        hvp = torch.autograd.grad(grad_v, params, retain_graph=True)
+        hvp_flat = torch.cat([h.reshape(-1) for h in hvp]).detach()
+        return hvp_flat
+    
+    def lancosz(self, hvp_fn, dim, k=10, max_iters=20, tol=1e-6):
+        """  
+        Lanczos with full re-orthogonalization and stable eigen solver.
+        hvp_fn: function that computes hessian-vector product
+        dim: dimension of the parameter space
+        k: number of Lanczos vectors / Ritz values to compute
+        """
+        Q = torch.zeros((dim, k), device=self.device, dtype=torch.float32)
+        alpha = torch.zeros(k, device=self.device, dtype=torch.float32)
+        beta = torch.zeros(k-1, device=self.device, dtype=torch.float32)
 
+        # initial random vector (unit)
+        q = torch.randn(dim, device=self.device, dtype=torch.float32)
+        q = q / (torch.norm(q) + 1e-12)
+        Q[:, 0] = q
+
+        for j in range(k):
+            z = hvp_fn(Q[:, j])           # H * q_j
+            # projection onto current basis
+            alpha[j] = torch.dot(Q[:, j], z)
+
+            # Form residual
+            if j > 0:
+                z = z - beta[j-1] * Q[:, j-1]
+            z = z - alpha[j] * Q[:, j]
+
+            # Full (modified) Gram-Schmidt re-orthogonalization against previous Q[:, :j+1]
+            if j >= 1:
+                # re-orthogonalize against all previous q's to maintain orthogonality
+                prev = Q[:, : (j + 1)]  # columns 0..j
+                # compute projections and subtract
+                proj = prev.T @ z       # (j+1,)
+                z = z - (prev @ proj)
+
+            if j < k - 1:
+                beta_j = torch.norm(z)
+                beta[j] = beta_j
+                if beta_j < tol:
+                    # truncate early: form T of current size (j+1)
+                    actual_k = j + 1
+                    T = torch.diag(alpha[:actual_k]) + \
+                        torch.diag(beta[:actual_k-1], 1) + \
+                        torch.diag(beta[:actual_k-1], -1)
+                    # symmetric eigensolver
+                    eigvals = torch.linalg.eigvalsh(T)
+                    eigvals, _ = torch.sort(eigvals, descending=True)
+                    return eigvals[:min(actual_k, k)]
+                Q[:, j+1] = z / (beta_j + 1e-20)
+
+        # build full tridiagonal T
+        T = torch.diag(alpha) + torch.diag(beta, 1) + torch.diag(beta, -1)
+        # use symmetric eig solver (stable, real)
+        eigvals = torch.linalg.eigvalsh(T)
+        eigvals, _ = torch.sort(eigvals, descending=True)
+        return eigvals[:k]
+    
+    def hessian_stats(self, x, y, k=10):
+        self.model.zero_grad(set_to_none=True)
+        x,y = x.to(self.device), y.to(self.device)
+        loss = self.criterion(self.model(x), y)
+
+        params = [p for p in self.model.parameters() if p.requires_grad]
+        dim = sum(p.numel() for p in params if p.requires_grad)
+        def hvp_fn(v):
+            return self.hessian_vector_product(loss, params, v)
+
+        eigenvals = self.lancosz(hvp_fn, dim, k=k)
+        eigenvals = eigenvals.detach().cpu()
+
+        lambda_max = eigenvals[0].item()
+        lambda_min = eigenvals[-1].item()
+        cond_num = lambda_max / (lambda_min + 1e-8)
+
+        return {
+            "hessian_top_eigenvalues": eigenvals.tolist(),
+            "hessian_lambda_max": lambda_max,
+            "hessian_lambda_min": lambda_min,
+            "hessian_condition_number": cond_num
+        }
+
+        
     def compute_grad_stats(self, norm_types=["1", "2", "inf", "frob", "spec"]) -> Dict[str, Any]:
         """
         Compute Lipschitz proxies with proper norm duality:

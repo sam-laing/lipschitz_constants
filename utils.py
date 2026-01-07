@@ -84,7 +84,7 @@ def maybe_init_wandb(cfg: SimpleNamespace, job_idx: int = 0):
         )
 
 
-def log_training_metrics(metrics_dict: Dict[str, Any], step: int, log_lipschitz: bool = False):
+def log_training_metrics(metrics_dict: Dict[str, Any], step: int, log_lipschitz: bool = False, log_hessian: bool = False):
     """
     Log training metrics to W&B with layer-first hierarchy:
     
@@ -128,6 +128,51 @@ def log_training_metrics(metrics_dict: Dict[str, Any], step: int, log_lipschitz:
                 if value is not None:
                     clean_layer = layer_name.replace(".", "_")
                     logs[f"{clean_layer}/grad_norm/{norm_type}"] = float(value)
+
+    if log_hessian:
+        """   
+        this is the function     def hessian_stats(self, x, y, k=10):
+        self.model.zero_grad(set_to_none=True)
+        x,y = x.to(self.device), y.to(self.device)
+        loss = self.criterion(self.model(x), y)
+
+        params = [p for p in self.model.parameters() if p.requires_grad]
+        dim = sum(p.numel() for p in params if p.requires_grad)
+        def hvp_fn(v):
+            return self.hessian_vector_product(loss, params, v)
+
+        eigenvals = self.lancosz(hvp_fn, dim, k=k)
+        eigenvals = eigenvals.detach().cpu()
+
+        lambda_max = eigenvals[0].item()
+        lambda_min = eigenvals[-1].item()
+        cond_num = lambda_max / (lambda_min + 1e-8)
+
+        return {
+            "hessian_top_eigenvalues": eigenvals.tolist(),
+            "hessian_lambda_max": lambda_max,
+            "hessian_lambda_min": lambda_min,
+            "hessian_condition_number": cond_num
+        }
+        so log the 4 pieces of information from this function in a panel 
+
+        
+        """
+        hessian_top_eigenvalues = metrics_dict.get("hessian_top_eigenvalues", [])
+        if hessian_top_eigenvalues:
+            for idx, eigenval in enumerate(hessian_top_eigenvalues):
+                logs[f"hessian/eigenvalue_{idx}"] = float(eigenval)
+        if "hessian_lambda_max" in metrics_dict:
+            logs["hessian/lambda_max"] = float(metrics_dict["hessian_lambda_max"])
+        if "hessian_lambda_min" in metrics_dict:
+            logs["hessian/lambda_min"] = float(metrics_dict["hessian_lambda_min"])
+        if "hessian_condition_number" in metrics_dict:
+            logs["hessian/condition_number"] = float(metrics_dict["hessian_condition_number"])
+        
+
+        
+ 
+
     
     if logs:
         wandb.log(logs, step=step)
