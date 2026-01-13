@@ -56,8 +56,6 @@ def make_loaders(cfg):
             
             ])
 
-
-
         train_dataset = CIFAR10_5k(train=True, transform=transform)
         test_dataset = CIFAR10_5k(train=False, transform=transform)
 
