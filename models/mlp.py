@@ -4,7 +4,7 @@ import math
 
 class MLP(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim,
-                 activation='relu', seperate_biases=True):
+                 activation='relu', seperate_biases=True, no_bias=False):
         super().__init__()
         self.seperate_biases = seperate_biases
 
@@ -39,6 +39,14 @@ class MLP(nn.Module):
             nn.init.uniform_(W2[:-1], -bound2, bound2)
             W2[-1].zero_()
             self.fc2 = nn.Parameter(W2)
+
+        if no_bias:
+            #just ignore above and init two matrix multiplications without bias
+            assert seperate_biases, "no_bias option only works with seperate_biases=True"
+            
+        
+
+
 
     def forward(self, x):
         if self.seperate_biases:

@@ -1,5 +1,5 @@
 dataset: "cifar10_5k"
-seed: 910
+seed: 123456
 num_workers: 4
 
 iters: 100
@@ -8,7 +8,7 @@ model: "mlp_ortho"
 #hidden dim as proportion of input dim
 hidden_dim: 2.5
 # playing with consuming bias into weights with [W|b][x|1]... maybe eliminates need for 2 optimizers
-seperate_biases: true
+seperate_biases: false
 # When true and `seperate_biases == false` initialize each folded weight matrix as U @ V^T
 weight_init: ["normal", "factorized_orthogonal"]
 batch_size: "full"
@@ -18,11 +18,11 @@ momentum: 0.0
 nesterov: false
 orthogonalize: true
 ns_steps: 5
-lr: [0.001, 0.003, 0.01, 0.03]
+lr: [0.0003, 0.001, 0.003, 0.01, 0.03]
 beta1: 0.0
 beta2: 0.0
 eps: 1.e-8
-weight_decay: 0.1
+weight_decay: [0.0, 0.1]
 adjust_lr: false
 dual_decay: [false, true]
 scheduler: null
