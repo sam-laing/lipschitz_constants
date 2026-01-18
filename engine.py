@@ -26,7 +26,14 @@ class Engine(nn.Module):
 
         self.named_params = list(self.model.named_parameters())
         self.cfg = cfg
-        self.criterion = nn.CrossEntropyLoss()
+        if cfg.loss == "cross_entropy":
+            self.criterion = nn.CrossEntropyLoss()
+        elif cfg.loss == "mse":
+            self.criterion = nn.MSELoss()
+        
+        # Store output_dim for one-hot encoding when using MSE loss
+        self.output_dim = cfg.output_dim if hasattr(cfg, 'output_dim') else 5
+
         opt = init_optimizer(cfg, model)
         self.optimizer = list(opt) if isinstance(opt, (list, tuple)) else [opt]
         self.iteration = 0
@@ -42,6 +49,11 @@ class Engine(nn.Module):
         
 
         x, y = x.to(self.device), y.to(self.device)
+        
+        # Convert targets to one-hot for MSE loss
+        if self.cfg.loss == "mse":
+            y = torch.nn.functional.one_hot(y, num_classes=self.output_dim).float()
+        
         for opt in self.optimizer:
             opt.zero_grad()
         
@@ -95,8 +107,15 @@ class Engine(nn.Module):
         with torch.no_grad():
             for x, y in val_loader:
                 x, y = x.to(self.device), y.to(self.device)
+                
+                # Convert targets to one-hot for MSE loss
+                if self.cfg.loss == "mse":
+                    y_loss = torch.nn.functional.one_hot(y, num_classes=self.output_dim).float()
+                else:
+                    y_loss = y
+                
                 output = self.model(x)
-                loss = self.criterion(output, y)
+                loss = self.criterion(output, y_loss)
                 total_loss += loss.item() * x.size(0)
                 _, predicted = torch.max(output, 1)
                 total_correct += (predicted == y).sum().item()

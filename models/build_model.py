@@ -15,7 +15,7 @@ def build_model(cfg):
             input_dim=input_dim,
             hidden_dim=hidden_dim,
             output_dim=output_dim,
-            activation='relu',
+            activation=cfg.activation if hasattr(cfg, 'activation') else 'relu',
             seperate_biases=cfg.seperate_biases,
         )
     
@@ -32,7 +32,7 @@ def build_model(cfg):
             input_dim=input_dim,
             hidden_dim=hidden_dim,
             output_dim=output_dim,
-            activation='relu',
+            activation=cfg.activation if hasattr(cfg, 'activation') else 'relu',
             separate_biases=cfg.seperate_biases,
             weight_init=cfg.weight_init,
             ortho_rank=ortho_rank

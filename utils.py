@@ -71,6 +71,10 @@ def maybe_init_wandb(cfg: SimpleNamespace, job_idx: int = 0):
                 f"job_{job_idx}",
                 f"optim_{cfg.optimizer}",
                 f"sched_{cfg.scheduler}",
+                f"activation_{cfg.activation}" if hasattr(cfg, "activation") else "activation_relu",
+                f"dataset_{cfg.dataset}",
+                f"model_{cfg.model}",
+                f"hidden_dim_{cfg.hidden_dim}",
                 f"lr_{cfg.lr}", 
                 f"momentum_{cfg.momentum}",
                 f"weight_decay_{cfg.weight_decay}",
@@ -81,7 +85,11 @@ def maybe_init_wandb(cfg: SimpleNamespace, job_idx: int = 0):
                 f"dual_decay_{cfg.dual_decay}" if hasattr(cfg, "dual_decay") else "dual_decay_False", 
                 f"sep_biases_{cfg.seperate_biases}" if hasattr(cfg, "seperate_biases") else "sep_biases_True", 
                 f"init_{cfg.weight_init}" if hasattr(cfg, "weight_init") else "init_normal",
-                f"ortho_rank_{cfg.ortho_rank}" if hasattr(cfg, "ortho_rank") else "ortho_rank_None"
+                f"ortho_rank_{cfg.ortho_rank}" if hasattr(cfg, "ortho_rank") else "ortho_rank_None", 
+                f"loss_{cfg.loss}" if hasattr(cfg, "loss") else "loss_cross_entropy",
+                f"ns_steps_{cfg.ns_steps}" if hasattr(cfg, "ns_steps") else "ns_steps_None",
+                
+                 
             ]
         )
 
