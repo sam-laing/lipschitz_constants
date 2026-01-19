@@ -1,7 +1,7 @@
 import torch 
 import torch.nn as nn 
 
-from data import cifar10_5k_make_loaders   
+from data import cifar10_5k_make_loaders, cifar10_make_loaders
 from engine import Engine 
 from utils import (
     load_config, 
@@ -28,9 +28,27 @@ def main(config_path: str, job_idx: int = 0):
     if use_wandb:
         maybe_init_wandb(cfg, job_idx=job_idx)
 
-    train_loader, val_loader, test_loader = cifar10_5k_make_loaders(cfg)
+    # Choose loader based on dataset
+    if cfg.dataset == 'cifar10_5k':
+        train_loader, val_loader, test_loader = cifar10_5k_make_loaders(cfg)
+    elif cfg.dataset == 'cifar10':
+        train_loader, val_loader, test_loader = cifar10_make_loaders(cfg)
+    else:
+        raise ValueError(f"Unknown dataset: {cfg.dataset}")
+    
     model = build_model(cfg)
     engine = Engine(model=model, cfg=cfg)
+
+    # Log initial loss before any training
+    print("Computing initial loss...")
+    init_metrics = engine.eval(train_loader)
+    print(f"Initial train loss: {init_metrics['loss']:.6f}, accuracy: {init_metrics['accuracy']:.4f}")
+    
+    if use_wandb:
+        wandb.log({
+            "train/loss_init": init_metrics['loss'],
+            "train/accuracy_init": init_metrics['accuracy']
+        }, step=0)
 
     for i in range(cfg.iters):
         print(f"iter {i+1}/{cfg.iters}")
