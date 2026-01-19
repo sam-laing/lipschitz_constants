@@ -1,17 +1,15 @@
 dataset: "cifar10_5k"
-seed: 3
+seed: 20
 num_workers: 4
 
 iters: 100
 
-model: "mlp_ortho"
-loss: "cross_entropy"  # options: "cross_entropy", "mse"
-#hidden dim as proportion of input dim
-hidden_dim: 2.5
-# playing with consuming bias into weights with [W|b][x|1]... maybe eliminates need for 2 optimizers
-seperate_biases: true
-activation: "relu"
-weight_init: ["factorized_orthogonal"] #["normal", "full_orthogonal"]
+model: "linear_regression"
+loss: "mse"  # linear regression uses MSE
+hidden_dim: null  # not used for linear regression
+seperate_biases: false  # not applicable, we use nn.Linear with bias=True
+activation: "linear"  # not used for linear regression
+weight_init: ["normal", "full_orthogonal"]
 batch_size: "full"
 #optimizer cfg
 optimizer: ["muon"]   #, "sgd", "sign_sgd"]
@@ -32,6 +30,5 @@ track_hessian: false
 hessian_freq: 1 
 hessian_k: 5
 
-
 track_lipschitz: false
-wandb_project_name: "orhog_initialization"
+wandb_project_name: "linear_regression_ortho"

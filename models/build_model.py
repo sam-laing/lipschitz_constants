@@ -38,6 +38,22 @@ def build_model(cfg):
             ortho_rank=ortho_rank
         )
     
+    elif cfg.model == 'linear_regression':
+        from .linear_regression import LinearRegression
+        input_dim = 32 * 32 * 3  
+        output_dim = 5
+        if cfg.dataset == 'cifar10':
+            output_dim = 10
+
+        ortho_rank = getattr(cfg, 'ortho_rank', None)
+        return LinearRegression(
+            input_dim=input_dim,
+            output_dim=output_dim,
+            use_bias=True,
+            weight_init=cfg.weight_init,
+            ortho_rank=ortho_rank
+        )
+    
     elif cfg.model == "cnn":
         from .cnn import SimpleCNN
         output_dim = 5
