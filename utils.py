@@ -88,7 +88,7 @@ def maybe_init_wandb(cfg: SimpleNamespace, job_idx: int = 0):
                 f"ortho_rank_{cfg.ortho_rank}" if hasattr(cfg, "ortho_rank") else "ortho_rank_None", 
                 f"loss_{cfg.loss}" if hasattr(cfg, "loss") else "loss_cross_entropy",
                 f"ns_steps_{cfg.ns_steps}" if hasattr(cfg, "ns_steps") else "ns_steps_None",
-                
+                f"loss_{cfg.loss}" if hasattr(cfg, "loss") else "loss_cross_entropy",
                  
             ]
         )

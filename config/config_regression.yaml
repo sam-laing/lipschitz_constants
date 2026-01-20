@@ -1,5 +1,5 @@
 dataset: "cifar10_5k"
-seed: 20
+seed: 21
 num_workers: 4
 
 iters: 100
