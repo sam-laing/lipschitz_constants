@@ -1,5 +1,5 @@
 dataset: "cifar10_5k"
-seed: 21
+seed: 24
 num_workers: 4
 
 iters: 100
@@ -7,7 +7,8 @@ iters: 100
 model: "linear_regression"
 loss: "mse"  # linear regression uses MSE
 hidden_dim: null  # not used for linear regression
-seperate_biases: false  # not applicable, we use nn.Linear with bias=True
+seperate_biases: true  # not applicable, we use nn.Linear with bias=True
+use_bias: false
 activation: "linear"  # not used for linear regression
 weight_init: ["normal", "full_orthogonal"]
 batch_size: "full"
@@ -17,7 +18,7 @@ momentum: 0.0
 nesterov: false
 orthogonalize: true
 ns_steps: 5
-lr: [0.00001, 0.00003, 0.0001, 0.0003, 0.001, 0.003, 0.01]
+lr: [0.00001, 0.00003, 0.0001, 0.0003, 0.001, 0.003]
 beta1: 0.0
 beta2: 0.0
 eps: 1.e-8

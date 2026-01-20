@@ -32,6 +32,7 @@ def build_model(cfg):
             input_dim=input_dim,
             hidden_dim=hidden_dim,
             output_dim=output_dim,
+            use_bias=cfg.use_bias if hasattr(cfg, 'use_bias') else True,
             activation=cfg.activation if hasattr(cfg, 'activation') else 'relu',
             separate_biases=cfg.seperate_biases,
             weight_init=cfg.weight_init,
@@ -49,7 +50,7 @@ def build_model(cfg):
         return LinearRegression(
             input_dim=input_dim,
             output_dim=output_dim,
-            use_bias=True,
+            use_bias=cfg.use_bias if hasattr(cfg, 'use_bias') else True,
             weight_init=cfg.weight_init,
             ortho_rank=ortho_rank
         )
