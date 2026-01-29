@@ -15,12 +15,12 @@ activation: "relu"
 weight_init: ["normal", "full_orthogonal"]
 batch_size: "full"
 #optimizer cfg
-optimizer: ["muon"]   #, "sgd", "sign_sgd"]
+optimizer: ["sgd"]   #, "sgd", "sign_sgd"]
 momentum: 0.0
 nesterov: false
 orthogonalize: true
 ns_steps: 5
-lr: [0.0003, 0.001, 0.003, 0.01, 0.03]
+lr: [3.e-7, 1.e-6, 3.e-6, 1.e-5, 3.e-5, 1.e-4, 3.e-3]
 beta1: 0.0
 beta2: 0.0
 eps: 1.e-8

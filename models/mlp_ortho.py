@@ -30,6 +30,10 @@ class OrthogonalInitializer:
 
             return W.T
 
+        elif init_type == "better_conditioned":
+            # really just want to have normal type of init (kaiming)
+            pass
+
         else:
             raise ValueError(f"Unsupported init_type: {init_type}")
 
