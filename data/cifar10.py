@@ -18,12 +18,12 @@ def make_loaders(cfg):
     """
     data_path = "/fast/slaing/data/vision/cifar10/"
     
-    # Correct CIFAR-10 normalization stats
+    # Correct CIFAR-10 normalization stats (normalize BEFORE flattening)
     transform = torchvision.transforms.Compose([
-        torchvision.transforms.ToTensor(),
+        torchvision.transforms.ToTensor(),  # Shape: (3, 32, 32)
         torchvision.transforms.Normalize(mean=[0.4914, 0.4822, 0.4465],
-                                         std=[0.2023, 0.1994, 0.2010]),
-        torchvision.transforms.Lambda(lambda x: x.view(-1))  # flatten to 3072-dim vector
+                                         std=[0.2023, 0.1994, 0.2010]),  # Still (3, 32, 32)
+        torchvision.transforms.Lambda(lambda x: x.reshape(-1))  # Flatten to 3072-dim vector
     ])
     
     train_dataset = CIFAR10(root=data_path, train=True, download=False, transform=transform)

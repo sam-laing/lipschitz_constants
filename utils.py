@@ -81,7 +81,7 @@ def maybe_init_wandb(cfg: SimpleNamespace, job_idx: int = 0):
                 f"seed_{cfg.seed}", 
                 f"beta1_{cfg.beta1}",
                 f"beta2_{cfg.beta2}",
-                f"batch_size_{cfg.batch_size}",  
+                f"batch_size_{cfg.batch_size}",
                 f"dual_decay_{cfg.dual_decay}" if hasattr(cfg, "dual_decay") else "dual_decay_False", 
                 f"sep_biases_{cfg.seperate_biases}" if hasattr(cfg, "seperate_biases") else "sep_biases_True",
                 f"use_bias_{cfg.use_bias}" if hasattr(cfg, "use_bias") else "use_bias_True",
@@ -101,6 +101,7 @@ def log_training_metrics(metrics_dict: Dict[str, Any], step: int, log_lipschitz:
     
     Structure:
       train/loss
+      train/accuracy
       {layer_name}/lipschitz/{norm_type}
       {layer_name}/grad_norm/{norm_type}
     
@@ -108,9 +109,11 @@ def log_training_metrics(metrics_dict: Dict[str, Any], step: int, log_lipschitz:
     """
     logs = {}
     
-    # Always log loss under train section
+    # Always log loss and accuracy under train section
     if "loss" in metrics_dict:
         logs["train/loss"] = float(metrics_dict["loss"])
+    if "accuracy" in metrics_dict:
+        logs["train/accuracy"] = float(metrics_dict["accuracy"])
     
     # Log Lipschitz metrics with LAYER as top-level section
     if log_lipschitz:

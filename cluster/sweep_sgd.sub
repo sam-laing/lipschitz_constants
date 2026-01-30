@@ -1,20 +1,19 @@
 
 # Define variables
-# NOTE: executable should be a full path
 LOGS_DIR=/home/slaing/muon_research/lipschitz_constants/logs
 executable=/home/slaing/muon_research/lipschitz_constants/cluster/run.sh
 
-# Job specific vars
-config=/home/slaing/muon_research/lipschitz_constants/config/config.yaml
-n_jobs=56
+# Job specific vars - SGD SWEEP
+config=/home/slaing/muon_research/lipschitz_constants/config/sweep_sgd.yaml
+n_jobs=32
 
 # Args
 arguments = $(config) $(Process)
 
 # Logs
-error = $(LOGS_DIR)/err/job.$(Cluster).$(Process).err
-output = $(LOGS_DIR)/out/job.$(Cluster).$(Process).out
-log = $(LOGS_DIR)/log/job.$(Cluster).$(Process).log
+error = $(LOGS_DIR)/err/sgd_sweep.$(Cluster).$(Process).err
+output = $(LOGS_DIR)/out/sgd_sweep.$(Cluster).$(Process).out
+log = $(LOGS_DIR)/log/sgd_sweep.$(Cluster).$(Process).log
 
 # Specs
 request_memory = 220000

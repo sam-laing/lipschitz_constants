@@ -5,8 +5,8 @@ LOGS_DIR=/home/slaing/muon_research/lipschitz_constants/logs
 executable=/home/slaing/muon_research/lipschitz_constants/cluster/run.sh
 
 # Job specific vars
-config=/home/slaing/muon_research/lipschitz_constants/config/config.yaml
-n_jobs=56
+config=/home/slaing/muon_research/lipschitz_constants/config/config_cifar10_minibatch.yaml
+n_jobs=8
 
 # Args
 arguments = $(config) $(Process)

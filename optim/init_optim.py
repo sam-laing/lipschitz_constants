@@ -23,6 +23,8 @@ def init_optimizer(cfg, model):
                 adjust_lr=cfg.adjust_lr, 
                 dual_decay=cfg.dual_decay
             )
+            if len(biases) == 0:
+                return muon_optimizer
             adamw_optimizer = torch.optim.AdamW(
                 biases,
                 lr=cfg.lr,
@@ -92,6 +94,8 @@ def init_optimizer(cfg, model):
                 adjust_lr=cfg.adjust_lr,
                 dual_decay=cfg.dual_decay
             )
+            if len(biases) == 0:
+                return muon_optimizer
             adamw_optimizer = torch.optim.AdamW(
                 biases,
                 lr=cfg.lr,

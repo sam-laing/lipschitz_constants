@@ -50,6 +50,9 @@ class Engine(nn.Module):
 
         x, y = x.to(self.device), y.to(self.device)
         
+        # Store original y for accuracy computation
+        y_targets = y
+        
         # Convert targets to one-hot for MSE loss
         if self.cfg.loss == "mse":
             y = torch.nn.functional.one_hot(y, num_classes=self.output_dim).float()
@@ -63,7 +66,11 @@ class Engine(nn.Module):
         #do the update to the weights
         loss.backward()
 
-        metrics_dict = {"loss": loss.item()}
+        # Compute accuracy
+        _, predicted = torch.max(output, 1)
+        accuracy = (predicted == y_targets).float().mean().item()
+
+        metrics_dict = {"loss": loss.item(), "accuracy": accuracy}
 
         if self.cfg.track_lipschitz:
             #store previous gradients

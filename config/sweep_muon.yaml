@@ -1,0 +1,44 @@
+# CIFAR-10 Muon Optimizer Sweep (Reduced)
+# Testing: weight_init, lr, momentum, batch_size, dual_decay
+# Total combinations: 2 inits × 4 LRs × 2 momentums × 2 batch_sizes × 2 dual_decay = 64 jobs
+
+dataset: "cifar10"
+seed: 43
+num_workers: 4
+
+# Training settings
+iters: 100  # epochs
+batch_size: [128, 256]  # Standard sizes for CIFAR-10
+
+# Model architecture
+model: "mlp_ortho"
+loss: "cross_entropy"
+hidden_dim: 1.5 
+seperate_biases: true
+use_bias: true
+activation: "relu"
+weight_init: ["normal", "full_orthogonal"]  # Compare both initializations
+
+# Muon optimizer configuration
+optimizer: "muon"
+momentum: [0.0, 0.9]  # No momentum vs high momentum
+nesterov: false
+orthogonalize: true
+ns_steps: 5
+lr: [3.e-4, 1.e-3, 3.e-3, 1.e-2]  # Focus on most promising range for Muon
+beta1: 0.0
+beta2: 0.0
+eps: 1.e-8
+weight_decay: 0.0
+adjust_lr: false
+dual_decay: [false]  # Test both decay strategies
+scheduler: null
+
+# Tracking (keep off for speed)
+track_hessian: false
+hessian_freq: 1 
+hessian_k: 5
+track_lipschitz: false
+
+# W&B logging
+wandb_project_name: "cifar10_mlp_sweep"

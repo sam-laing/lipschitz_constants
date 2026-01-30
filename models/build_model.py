@@ -54,6 +54,12 @@ def build_model(cfg):
             weight_init=cfg.weight_init,
             ortho_rank=ortho_rank
         )
+    elif cfg.model == "resnet18":
+        from torchvision.models import resnet18
+        output_dim = 5
+        if cfg.dataset == 'cifar10':
+            output_dim = 10
+        return resnet18(num_classes=output_dim)
     
     elif cfg.model == "cnn":
         from .cnn import SimpleCNN

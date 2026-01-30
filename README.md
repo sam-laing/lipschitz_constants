@@ -46,3 +46,17 @@ Some of the norms we track for ρ include:
 - ℓ₂ (“2”)
 - ℓ∞ (“inf”)
 - Spectral/operator norm (“spec”)
+
+## Interactive runner
+
+Use `test.py` to run the pipeline interactively with quick overrides:
+
+```bash
+python test.py --interactive --config ./config/config.yaml
+```
+
+You can also run it non-interactively (same defaults as `train.py`):
+
+```bash
+python test.py --config ./config/config.yaml
+```
