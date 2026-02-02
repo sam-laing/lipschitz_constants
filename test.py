@@ -1,7 +1,7 @@
 import torch 
 import torch.nn as nn 
 
-from data import cifar10_5k_make_loaders   
+from data import cifar10_5k_make_loaders, cifar10_make_loaders
 from engine import Engine 
 from utils import (
     load_config, 
@@ -13,99 +13,84 @@ from utils import (
 )
 from models import build_model
 import wandb
-import argparse
-from types import SimpleNamespace
+
+def main(store_weights=False):
+    config_path = "./config/config_inter.yaml"
+    cfg_dict = load_config(config_path, job_idx=0)               
+    cfg = config_to_ns(cfg_dict)                     
+    
+    if cfg.seed is not None:
+        torch.manual_seed(cfg.seed)
+        torch.cuda.manual_seed_all(cfg.seed)
+
+    use_wandb = bool(getattr(cfg, "wandb_project_name", None))
+    if use_wandb:
+        maybe_init_wandb(cfg, job_idx=0)
+
+    # Choose loader based on dataset
+    if cfg.dataset == 'cifar10_5k':
+        train_loader, val_loader, test_loader = cifar10_5k_make_loaders(cfg)
+    elif cfg.dataset == 'cifar10':
+        train_loader, val_loader, test_loader = cifar10_make_loaders(cfg)
+    else:
+        raise ValueError(f"Unknown dataset: {cfg.dataset}")
+    
+    model = build_model(cfg)
+    engine = Engine(model=model, cfg=cfg)
+
+    # Log initial loss before any training
+    print("Computing initial loss...")
+    init_metrics = engine.eval(train_loader)
+    print(f"Initial train loss: {init_metrics['loss']:.6f}, accuracy: {init_metrics['accuracy']:.4f}")
+    
+    if use_wandb:
+        wandb.log({
+            "train/loss_init": init_metrics['loss'],
+            "train/accuracy_init": init_metrics['accuracy']
+        }, step=0)
+
+    for i in range(cfg.iters):
+        print(f"iter {i+1}/{cfg.iters}")
+        
+        for x, y in train_loader:
+            train_metrics = engine.step(x, y)
+        
+        # Print
+        print("Training metrics:")
+        for key, value in train_metrics.items():
+            print(f"  {key}: {value}")
+        
+        # Log to W&B
+        if use_wandb:
+            log_training_metrics(
+                train_metrics, 
+                step=engine.iteration,
+                log_lipschitz=cfg.track_lipschitz, 
+                log_hessian=cfg.track_hessian
+            )
+
+        # Validation
+        val_metrics = engine.eval(val_loader)
+        print(f"Validation metrics: {val_metrics}")
+        
+        if use_wandb:
+            log_validation_metrics(val_metrics, step=engine.iteration)
+    
+    # Test set eval
+    test_metrics = engine.eval(test_loader)
+    print(f"Test metrics: {test_metrics}")
+    
+    if use_wandb:
+        log_test_summary(test_metrics, final_step=engine.iteration)
+        wandb.finish()
+
+    if store_weights:
+        path = "/fast/slaing/converged_weights/"
+
+        save_path = path + f"opt_{cfg.optimizer}_lr{cfg.lr}_{cfg.iters}_seed{cfg.seed}_model{cfg.model}_dataset{cfg.dataset}.pt"
+        torch.save(model.state_dict(), save_path)
+        print(f"Saved model weights to {save_path}")
 
 
 if __name__ == "__main__":
-
-    #set the seed
-    torch.manual_seed(433)
-
-    print("-------")
-    from dataclasses import dataclass
-    @dataclass  
-    class Config:
-        model: str = 'mlp_ortho'
-        dataset: str = 'cifar10_5k'
-        hidden_dim: float = 3.0
-        batch_size: int = None 
-        seperate_biases: bool = False
-        num_workers: int = 2
-        weight_init: str = 'factorized_orthogonal'
-        ortho_rank: int = None
-        seed: int = 1000
-        iters: int = 2
-        wandb_project_name: str = ''
-        track_lipschitz: bool = False
-        track_hessian: bool = False
-    """ 
-    #ok just generate a random x and see the output's loss for a number of different num_classes options
-
-    for seed in [11,12,13,14,15,16,1768,18888]:
-        torch.manual_seed(seed)
-        cfg = Config(model="mlp", seperate_biases=True)
-        cfg_toggle = Config(model="mlp", seperate_biases=False)
-
-        x = torch.randn(2048, 32*32*3)
-        y = torch.randint(0, 5, (2048,))
-        from models.mlp import MLP
-
-
-        model = build_model(cfg)
-        model_toggle = build_model(cfg_toggle)
-        criterion = nn.CrossEntropyLoss()
-
-        outputs = model(x)
-        loss = criterion(outputs, y)
-        print(f"Output shape (separate biases): {outputs.shape}, Loss: {loss.item():.4f}")
-        outputs_toggle = model_toggle(x)
-        loss_toggle = criterion(outputs_toggle, y)
-        print(f"Output shape (combined weights): {outputs_toggle.shape}, Loss: {loss_toggle.item():.4f}")
-
-        print("-------")
-
-
-    """ 
-    for seed in [42, 100, 2024, 10000, 222, 333, 44, 55]:
-        torch.manual_seed(seed) 
-        cfg_normal = Config(weight_init='normal', seperate_biases=False)
-
-        cfg_fact_ortho = Config(weight_init='factorized_orthogonal')
-        cfg_fact_ortho_sep_bias = Config(weight_init='factorized_orthogonal', seperate_biases=True)
-        cfg_normal_sep_bias = Config(weight_init='normal', seperate_biases=True)
-        model = build_model(cfg_normal)
-        model_fact_ortho = build_model(cfg_fact_ortho)
-        model_fact_ortho_sep_bias = build_model(cfg_fact_ortho_sep_bias)
-        model_normal_sep_bias = build_model(cfg_normal_sep_bias)
-
-        cfg = Config(model ="mlp")
-        cfg_sep_bias = Config(model ="mlp", seperate_biases=True)
-        train_loader, val_loader, test_loader = cifar10_5k_make_loaders(cfg)    #_normal)
-        
-
-        # just check out the initlization loss for both models
-        def compute_init_loss(model, data_loader):
-            model.eval()
-            total_loss = 0.0
-            criterion = nn.CrossEntropyLoss()
-            with torch.no_grad():
-                for x, y in data_loader:
-                    
-                    outputs = model(x)
-
-                    loss = criterion(outputs, y)
-                    total_loss += loss.item() * x.size(0)
-            avg_loss = total_loss / len(data_loader.dataset)
-            return avg_loss
-
-
-        init_loss_normal = compute_init_loss(model, train_loader)
-        init_loss_fact_ortho = compute_init_loss(model_fact_ortho, train_loader)
-        #init_loss_fact_ortho_sep_bias = compute_init_loss(model_fact_ortho_sep_bias, train_loader)
-        init_loss_normal_sep_bias = compute_init_loss(model_normal_sep_bias, train_loader)
-
-        print(f"Initial loss with normal init: {init_loss_normal:.4f}")
-        print(f"Initial loss with factorized orthogonal init: {init_loss_fact_ortho:.4f}")
-        #print(f"Initial loss with factorized orthogonal init and separate biases: {init_loss_fact_ortho_sep_bias:.4f}")
-        print(f"Initial loss with normal init and separate biases: {init_loss_normal_sep_bias:.4f}")
+    main(store_weights=True)
