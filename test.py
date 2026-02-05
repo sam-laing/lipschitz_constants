@@ -1,5 +1,6 @@
 import torch 
 import torch.nn as nn 
+import os
 
 from data import cifar10_5k_make_loaders, cifar10_make_loaders
 from engine import Engine 
@@ -13,6 +14,7 @@ from utils import (
 )
 from models import build_model
 import wandb
+path = "/fast/slaing/converged_weights/exp2/"
 
 def main(store_weights=False):
     config_path = "./config/config_inter.yaml"
@@ -59,8 +61,13 @@ def main(store_weights=False):
         print("Training metrics:")
         for key, value in train_metrics.items():
             print(f"  {key}: {value}")
+        if i % 50 == 0:
+            #save the weight to path 
+            save_path = path + f"opt_{cfg.optimizer}_lr{cfg.lr}_{i+1}_{cfg.iters}_seed{cfg.seed}.pt"
+            torch.save(model.state_dict(), save_path)
+            print(f"Saved model weights to {save_path}")
+            
         
-        # Log to W&B
         if use_wandb:
             log_training_metrics(
                 train_metrics, 
@@ -85,8 +92,6 @@ def main(store_weights=False):
         wandb.finish()
 
     if store_weights:
-        path = "/fast/slaing/converged_weights/"
-
         save_path = path + f"opt_{cfg.optimizer}_lr{cfg.lr}_{cfg.iters}_seed{cfg.seed}_model{cfg.model}_dataset{cfg.dataset}.pt"
         torch.save(model.state_dict(), save_path)
         print(f"Saved model weights to {save_path}")

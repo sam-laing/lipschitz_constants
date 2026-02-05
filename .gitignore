@@ -25,3 +25,5 @@ wandb/
 /cluster/wandb/
 
 results/
+plots/
+
