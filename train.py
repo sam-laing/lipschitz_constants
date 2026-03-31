@@ -9,7 +9,8 @@ from utils import (
     config_to_ns,
     log_training_metrics,
     log_validation_metrics,
-    log_test_summary
+    log_test_summary,
+    save_model_weights
 )
 from models import build_model
 import wandb
@@ -112,6 +113,9 @@ def main(config_path: str, job_idx: int = 0):
         final_step = cfg.iters if (cfg.dataset == 'cifar10' and cfg.batch_size != "full") else engine.iteration
         log_test_summary(test_metrics, final_step=final_step)
         wandb.finish()
+    
+    # Save model weights
+    save_model_weights(model, cfg)
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()

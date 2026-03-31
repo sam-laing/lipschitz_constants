@@ -13,6 +13,7 @@ from utils import (
     log_training_metrics,
     log_validation_metrics,
     log_test_summary,
+    save_model_weights,
 )
 from models import build_model
 import wandb
@@ -121,6 +122,9 @@ def run_pipeline(cfg: Any, max_train_batches: Optional[int] = None,
     if use_wandb:
         log_test_summary(test_metrics, final_step=engine.iteration)
         wandb.finish()
+    
+    # Save model weights
+    save_model_weights(model, cfg)
 
 
 def _train_with_limit(engine: Engine, loader, max_batches: Optional[int] = None) -> Dict[str, Any]:

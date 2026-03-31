@@ -1,0 +1,93 @@
+#!/bin/bash
+# Quick reference: Running mlp_ortho_v2 with different initialization strategies
+
+echo "MLP Orthogonal Initialization - Quick Start Guide"
+echo "=================================================="
+
+# Make sure you're in the workspace directory
+cd /home/slaing/muon_research/lipschitz_constants
+
+echo ""
+echo "1. KAIMING-ORTHOGONAL (RECOMMENDED)"
+echo "   Best for most cases. Kaiming variance preservation + orthogonal structure."
+echo "   Command:"
+echo "   $ python train.py --config config/config_mlp_ortho_v2_kaiming.yaml"
+echo ""
+
+echo "2. PURE ORTHOGONAL"
+echo "   All weights are purely orthogonal with fixed gain."
+echo "   Command:"
+echo "   $ python train.py --config config/config_mlp_ortho_v2_orthogonal.yaml"
+echo ""
+
+echo "3. PERTURBED ORTHOGONAL"
+echo "   Start near Kaiming init, add orthogonal perturbations (radius=0.01)."
+echo "   Command:"
+echo "   $ python train.py --config config/config_mlp_ortho_v2_perturbed.yaml"
+echo ""
+
+echo "4. INTERACTIVE TEST"
+echo "   Run with interactive configuration:"
+echo "   $ python test.py --config config/config_mlp_ortho_v2_kaiming.yaml --interactive"
+echo ""
+
+echo "5. CUSTOM CONFIG"
+echo "   Edit any config file or create new one with:"
+echo "   - model: mlp_ortho_v2"
+echo "   - init_mode: orthogonal | kaiming_orthog | perturbed | kaiming"
+echo "   - init_gain, init_nonlinearity, perturb_radius, perturb_w_star_mode"
+echo ""
+
+echo "6. MONITORING WITH WANDB"
+echo "   W&B logging is configured in the example configs."
+echo "   Set wandb_project_name in config to enable."
+echo ""
+
+echo "7. DEFAULT CONFIG"
+echo "   To use default (kaiming_orthog):"
+echo "   $ python train.py  # uses config/config.yaml"
+echo "   Make sure to set 'model: mlp_ortho_v2' in config/config.yaml"
+echo ""
+
+echo "Key Configuration Options:"
+echo "========================="
+echo "  model: mlp_ortho_v2"
+echo "  init_mode: kaiming_orthog (default), orthogonal, perturbed, kaiming"
+echo "  init_gain: 0.02 (scaling for orthogonal modes)"
+echo "  init_nonlinearity: relu (for Kaiming gain)"
+echo "  include_bias: true/false"
+echo "  perturb_radius: 0.01 (for perturbed mode)"
+echo "  perturb_w_star_mode: kaiming, zeros, custom"
+echo ""
+
+echo "Example Python Usage:"
+echo "===================="
+echo "from models.mlp_ortho_v2 import MLP"
+echo ""
+echo "# Kaiming-orthogonal"
+echo "model = MLP(3072, 4608, 10, init_mode='kaiming_orthog')"
+echo ""
+echo "# Pure orthogonal"
+echo "model = MLP(3072, 4608, 10, init_mode='orthogonal', init_gain=0.02)"
+echo ""
+echo "# Perturbed orthogonal"
+echo "model = MLP(3072, 4608, 10, init_mode='perturbed', perturb_radius=0.01)"
+echo ""
+
+echo "Files Created:"
+echo "=============="
+echo "  models/mlp_ortho_v2.py - New model implementation"
+echo "  config/config_mlp_ortho_v2_kaiming.yaml"
+echo "  config/config_mlp_ortho_v2_orthogonal.yaml"
+echo "  config/config_mlp_ortho_v2_perturbed.yaml"
+echo "  README_ORTHO.md - Detailed documentation"
+echo ""
+
+echo "Why Orthogonal Init for Muon?"
+echo "=============================="
+echo "Muon projects gradients onto Stiefel manifold (orthonormal matrices)."
+echo "Starting near the manifold means:"
+echo "  - Faster convergence"
+echo "  - Single values remain well-conditioned"
+echo "  - Better numerical stability"
+echo ""

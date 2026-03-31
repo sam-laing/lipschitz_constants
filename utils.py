@@ -219,3 +219,56 @@ def log_test_summary(metrics_dict: Dict[str, Any], final_step: int):
     # Also log to summary for easy comparison in workspace table
     wandb.run.summary["test_loss"] = float(metrics_dict["loss"])
     wandb.run.summary["test_accuracy"] = float(metrics_dict["accuracy"])
+
+
+def save_model_weights(model, cfg, save_dir="/fast/slaing/mlp_weights/muon"):
+    """
+    Save model weights with hyperparameter identifiers in filename.
+    
+    Args:
+        model: PyTorch model to save
+        cfg: Configuration namespace with hyperparameters
+        save_dir: Directory to save weights (default: /fast/slaing/mlp_weights/muon)
+    """
+    import os
+    import torch
+    
+    # Create directory if it doesn't exist
+    os.makedirs(save_dir, exist_ok=True)
+    
+    # Build filename with key hyperparameters
+    filename_parts = [
+        f"model_{cfg.model}",
+        f"dataset_{cfg.dataset}",
+        f"lr_{cfg.lr}",
+        f"iters_{cfg.iters}",
+        f"seed_{cfg.seed}",
+        f"optimizer_{cfg.optimizer}",
+    ]
+    
+    # Add optimizer-specific parameters
+    if cfg.optimizer == "muon":
+        if hasattr(cfg, 'orthogonalize') and cfg.orthogonalize:
+            filename_parts.append("ortho")
+        if hasattr(cfg, 'ns_steps'):
+            filename_parts.append(f"ns{cfg.ns_steps}")
+    
+    # Add model-specific parameters
+    if hasattr(cfg, 'hidden_dim'):
+        filename_parts.append(f"hd{cfg.hidden_dim}")
+    if hasattr(cfg, 'activation'):
+        filename_parts.append(f"act_{cfg.activation}")
+    if hasattr(cfg, 'init_mode'):
+        filename_parts.append(f"init_{cfg.init_mode}")
+    if hasattr(cfg, 'use_bias'):
+        filename_parts.append(f"bias_{cfg.use_bias}")
+    
+    # Join parts and add .pth extension
+    filename = "_".join(filename_parts) + ".pth"
+    filepath = os.path.join(save_dir, filename)
+    
+    # Save the state dict
+    torch.save(model.state_dict(), filepath)
+    print(f"Saved model weights to: {filepath}")
+    
+    return filepath

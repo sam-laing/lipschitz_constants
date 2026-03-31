@@ -1,0 +1,43 @@
+dataset: "cifar10_5k"
+seed: 12
+num_workers: 1
+
+iters: 100
+
+model: "mlp_ortho_v2"
+hidden_dim: 1.5 
+use_bias: true
+activation: "relu"
+include_bias: true
+
+# Perturbed initialization: W* + radius * Q
+init_mode: "perturbed"
+init_gain: 0.02
+init_nonlinearity: "relu"
+
+# Perturbation control
+perturb_radius: 0.01          # How far to deviate from W*
+perturb_w_star_mode: "kaiming"  # Start from Kaiming init, then add orthogonal noise
+
+batch_size: "full"
+
+optimizer: "muon"
+momentum: 0.0
+nesterov: false
+orthogonalize: true
+ns_steps: 5
+lr: 1.e-3
+beta1: 0.0
+beta2: 0.0
+eps: 1.e-8
+weight_decay: 0.0
+adjust_lr: false
+dual_decay: false
+scheduler: null
+
+track_hessian: false
+hessian_freq: 1 
+hessian_k: 5
+
+track_lipschitz: false
+wandb_project_name: "mlp_ortho_v2_perturbed"
