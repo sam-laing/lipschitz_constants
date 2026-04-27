@@ -13,9 +13,10 @@ class CIFAR10_5k(Dataset):
     Expects data in npz format with 'images' and 'labels' arrays.
     """
 
-    def __init__(self, train: bool = True, transform: Optional[torchvision.transforms.Compose] = None) -> None:
+    def __init__(self, train: bool = True, transform: Optional[torchvision.transforms.Compose] = None, data_root: Optional[str] = None) -> None:
         split = "train" if train else "test"
-        data_dir = os.path.join(os.path.dirname(__file__), "cifar10_5k", split)
+        root = data_root if data_root else os.path.join(os.path.dirname(__file__), "cifar10_5k")
+        data_dir = os.path.join(root, split)
         npz_path = os.path.join(data_dir, "data.npz")
         data = np.load(npz_path)
         self.images = data["images"]  # shape (5000, 32, 32, 3), uint8
@@ -54,8 +55,9 @@ def make_loaders(cfg):
             
             ])
 
-        train_dataset = CIFAR10_5k(train=True, transform=transform)
-        test_dataset = CIFAR10_5k(train=False, transform=transform)
+        data_root = getattr(cfg, 'data_root', None)
+        train_dataset = CIFAR10_5k(train=True, transform=transform, data_root=data_root)
+        test_dataset = CIFAR10_5k(train=False, transform=transform, data_root=data_root)
 
         if cfg.seed is not None:
             np.random.seed(cfg.seed)

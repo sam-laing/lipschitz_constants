@@ -7,8 +7,12 @@ Usage:
 """
 import json
 import os
+import sys
 import time
 from types import SimpleNamespace
+
+_HERE = os.path.dirname(os.path.abspath(__file__)) if "__file__" in dir() else "/content/lipschitz_constants"
+sys.path.insert(0, _HERE)
 
 import torch
 
@@ -17,11 +21,12 @@ from engine import Engine
 from models import build_model
 
 # ── sweep config ──────────────────────────────────────────────────────────────
-SEED    = 42
-ITERS   = 100
+SEED      = 42
+ITERS     = 100
+DATA_ROOT = None  # set to e.g. "/content/cifar10_5k" if data isn't in the default location
 LRS     = [5e-4, 1e-3, 2e-3, 5e-3, 3e-3, 1e-2, "line_search"]
 OPTIMIZERS = ["sgd", "muon"]
-OUT     = os.path.join(os.path.dirname(__file__), "sweep_results.json")
+OUT     = os.path.join(_HERE, "sweep_results.json")
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -29,6 +34,7 @@ def base_cfg(optimizer: str, lr) -> SimpleNamespace:
     return SimpleNamespace(
         # data
         dataset="cifar10_5k",
+        data_root=DATA_ROOT,
         num_workers=0,
         batch_size="full",
         seed=SEED,
@@ -164,3 +170,12 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+try:
+    from google.colab import drive
+    drive.mount('/content/drive')
+    import shutil
+    shutil.copy(OUT, '/content/drive/MyDrive/sweep_results.json')
+    print("Saved to Google Drive: MyDrive/sweep_results.json")
+except ImportError:
+    pass
