@@ -11,7 +11,10 @@ import sys
 import time
 from types import SimpleNamespace
 
-_HERE = os.path.dirname(os.path.abspath(__file__)) if "__file__" in dir() else "/content/lipschitz_constants"
+try:
+    _HERE = os.path.dirname(os.path.abspath(__file__))
+except NameError:
+    _HERE = "/content/lipschitz_constants"
 sys.path.insert(0, _HERE)
 
 import torch
