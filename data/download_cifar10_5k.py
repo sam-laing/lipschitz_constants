@@ -5,7 +5,7 @@ from datasets import load_dataset
 from PIL import Image
 import io
 
-DATA_DIR = "/fast/slaing/data/vision/cifar10_5class_5k"
+DATA_DIR = os.path.join(os.path.dirname(__file__), "cifar10_5k")
 REPO_ID = "r-three/cifar10-5class-5k"
 
 

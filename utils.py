@@ -114,6 +114,8 @@ def log_training_metrics(metrics_dict: Dict[str, Any], step: int, log_lipschitz:
         logs["train/loss"] = float(metrics_dict["loss"])
     if "accuracy" in metrics_dict:
         logs["train/accuracy"] = float(metrics_dict["accuracy"])
+    if "lr_line_search" in metrics_dict:
+        logs["train/lr_line_search"] = float(metrics_dict["lr_line_search"])
     
     # Log Lipschitz metrics with LAYER as top-level section
     if log_lipschitz:
@@ -221,7 +223,11 @@ def log_test_summary(metrics_dict: Dict[str, Any], final_step: int):
     wandb.run.summary["test_accuracy"] = float(metrics_dict["accuracy"])
 
 
-def save_model_weights(model, cfg, save_dir="/fast/slaing/mlp_weights/muon"):
+_PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+
+def save_model_weights(model, cfg, save_dir=None):
+    if save_dir is None:
+        save_dir = os.path.join(_PROJECT_ROOT, "weights")
     """
     Save model weights with hyperparameter identifiers in filename.
     

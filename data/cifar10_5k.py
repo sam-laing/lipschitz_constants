@@ -14,10 +14,8 @@ class CIFAR10_5k(Dataset):
     """
 
     def __init__(self, train: bool = True, transform: Optional[torchvision.transforms.Compose] = None) -> None:
-        if train:
-            data_dir = "/fast/slaing/data/vision/cifar10_5class_5k/train"
-        else:
-            data_dir = "/fast/slaing/data/vision/cifar10_5class_5k/test"
+        split = "train" if train else "test"
+        data_dir = os.path.join(os.path.dirname(__file__), "cifar10_5k", split)
         npz_path = os.path.join(data_dir, "data.npz")
         data = np.load(npz_path)
         self.images = data["images"]  # shape (5000, 32, 32, 3), uint8
@@ -78,6 +76,8 @@ def make_loaders(cfg):
         test_dataset_final = torch.utils.data.Subset(test_dataset, test_indices)
 
 
+        pin = torch.cuda.is_available()
+
         if cfg.batch_size == "full" or cfg.batch_size is None:
             cfg.batch_size = len(train_dataset)
 
@@ -86,37 +86,36 @@ def make_loaders(cfg):
             batch_size=cfg.batch_size,
             shuffle=True,
             num_workers=cfg.num_workers,
-            pin_memory=True,
+            pin_memory=pin,
         )
 
         val_loader = DataLoader(
             val_dataset,
-            batch_size=len(val_dataset),  # full batch for val
+            batch_size=len(val_dataset),
             shuffle=False,
             num_workers=cfg.num_workers,
-            pin_memory=True,
+            pin_memory=pin,
         )
 
         test_loader = DataLoader(
             test_dataset_final,
-            batch_size=len(test_dataset_final),  # full batch for test
+            batch_size=len(test_dataset_final),
             shuffle=False,
             num_workers=cfg.num_workers,
-            pin_memory=True,
+            pin_memory=pin,
         )
 
         return train_loader, val_loader, test_loader
 
     elif cfg.dataset == 'cifar10':
-        data_path = "/fast/slaing/data/vision/cifar10/"
+        data_path = os.path.join(os.path.dirname(__file__), "cifar10")
         transform = torchvision.transforms.Compose([
             torchvision.transforms.ToTensor(),
             torchvision.transforms.Normalize(mean=[0.4914, 0.4822, 0.4465],
-                                             std=[0.2023, 0.1994, 0.2010]), 
-            
-            ])  
-        train_dataset = CIFAR10(root=data_path, train=True, download=False, transform=transform)
-        test_dataset = CIFAR10(root=data_path, train=False, download=False, transform=transform)
+                                             std=[0.2023, 0.1994, 0.2010]),
+            ])
+        train_dataset = CIFAR10(root=data_path, train=True, download=True, transform=transform)
+        test_dataset = CIFAR10(root=data_path, train=False, download=True, transform=transform)
 
         if cfg.seed is not None:
             np.random.seed(cfg.seed)
@@ -135,28 +134,30 @@ def make_loaders(cfg):
         val_dataset = torch.utils.data.Subset(test_dataset, val_indices)
         test_dataset_final = torch.utils.data.Subset(test_dataset, test_indices)
 
+        pin = torch.cuda.is_available()
+
         train_loader = DataLoader(
             train_dataset,
             batch_size=cfg.batch_size,
             shuffle=True,
             num_workers=cfg.num_workers,
-            pin_memory=True,
+            pin_memory=pin,
         )
 
         val_loader = DataLoader(
             val_dataset,
-            batch_size=len(val_dataset),  # full batch for val
+            batch_size=len(val_dataset),
             shuffle=False,
             num_workers=cfg.num_workers,
-            pin_memory=True,
+            pin_memory=pin,
         )
 
         test_loader = DataLoader(
             test_dataset_final,
-            batch_size=len(test_dataset_final),  # full batch for test
+            batch_size=len(test_dataset_final),
             shuffle=False,
             num_workers=cfg.num_workers,
-            pin_memory=True,
+            pin_memory=pin,
         )
 
         return train_loader, val_loader, test_loader

@@ -1,6 +1,7 @@
-import torch 
-import torch.nn as nn  
+import torch
+import torch.nn as nn
 from optim import init_optimizer
+from optim.line_search import brent_line_search
 from typing import Dict, Any
 
 class Engine(nn.Module):
@@ -36,6 +37,8 @@ class Engine(nn.Module):
 
         opt = init_optimizer(cfg, model)
         self.optimizer = list(opt) if isinstance(opt, (list, tuple)) else [opt]
+        self.use_line_search = str(getattr(cfg, 'lr', '')).lower() == 'line_search'
+        self.line_search_bracket = float(getattr(cfg, 'line_search_bracket', 4.0))
         self.iteration = 0
         if cfg.track_lipschitz:
             #initialize previous weights 
@@ -73,12 +76,40 @@ class Engine(nn.Module):
         metrics_dict = {"loss": loss.item(), "accuracy": accuracy}
 
         if self.cfg.track_lipschitz:
-            #store previous gradients
             self.grads_Wk = { name: p.grad.detach().clone() for name, p in self.model.named_parameters() }
 
-        #step optimizer(s)
-        for opt in self.optimizer:
-            opt.step()
+        if self.use_line_search:
+            # Save params, take a unit step to extract the update direction,
+            # then do golden-section search to find the best scalar multiple.
+            saved = {n: p.data.clone() for n, p in self.model.named_parameters()}
+
+            for opt in self.optimizer:
+                opt.step()
+
+            direction = {n: p.data.clone() - saved[n] for n, p in self.model.named_parameters()}
+
+            # Restore to pre-step weights before line search
+            with torch.no_grad():
+                for n, p in self.model.named_parameters():
+                    p.data.copy_(saved[n])
+
+            def phi(t):
+                with torch.no_grad():
+                    for n, p in self.model.named_parameters():
+                        p.data.copy_(saved[n] + t * direction[n])
+                    out = self.model(x)
+                    return self.criterion(out, y).item()
+
+            t_opt = brent_line_search(phi, bracket=self.line_search_bracket)
+
+            with torch.no_grad():
+                for n, p in self.model.named_parameters():
+                    p.data.copy_(saved[n] + t_opt * direction[n])
+
+            metrics_dict['lr_line_search'] = t_opt
+        else:
+            for opt in self.optimizer:
+                opt.step()
 
         # now look at the updated weights and gradients if tracking lipschitz
         if self.cfg.track_lipschitz:

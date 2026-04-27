@@ -28,3 +28,8 @@ wandb/
 /cluster/wandb/
 
 results/
+
+# local data and model weights
+data/cifar10_5k/
+data/cifar10/
+weights/

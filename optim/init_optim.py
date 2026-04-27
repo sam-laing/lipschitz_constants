@@ -1,6 +1,10 @@
 import torch
 
 def init_optimizer(cfg, model):
+    # Line search computes the direction; optimizers run with lr=1.0 and the
+    # engine scales the step by the found scalar afterwards.
+    raw_lr = cfg.lr
+    lr = 1.0 if str(raw_lr).lower() == "line_search" else raw_lr
     if cfg.optimizer == 'muon':
         from optim.muon import Muon
         if cfg.seperate_biases:
@@ -13,21 +17,21 @@ def init_optimizer(cfg, model):
                     non_biases.append(param)
             
             muon_optimizer = Muon(
-                non_biases, 
-                lr=cfg.lr,
+                non_biases,
+                lr=lr,
                 momentum=cfg.momentum,
                 nesterov=cfg.nesterov,
                 ns_steps=cfg.ns_steps,
                 orthogonalize=cfg.orthogonalize,
                 weight_decay=cfg.weight_decay,
-                adjust_lr=cfg.adjust_lr, 
+                adjust_lr=cfg.adjust_lr,
                 dual_decay=cfg.dual_decay
             )
             if len(biases) == 0:
                 return muon_optimizer
             adamw_optimizer = torch.optim.AdamW(
                 biases,
-                lr=cfg.lr,
+                lr=lr,
                 weight_decay=0.0,
                 betas = (cfg.beta1, cfg.beta2),
                 eps=cfg.eps
@@ -35,46 +39,46 @@ def init_optimizer(cfg, model):
             return muon_optimizer, adamw_optimizer
         else:
             muon_optimizer = Muon(
-                model.parameters(), 
-                lr=cfg.lr,
+                model.parameters(),
+                lr=lr,
                 momentum=cfg.momentum,
                 nesterov=cfg.nesterov,
                 ns_steps=cfg.ns_steps,
                 orthogonalize=cfg.orthogonalize,
                 weight_decay=cfg.weight_decay,
-                adjust_lr=cfg.adjust_lr, 
+                adjust_lr=cfg.adjust_lr,
                 dual_decay=cfg.dual_decay
             )
             return muon_optimizer
 
-        
+
     elif cfg.optimizer == 'sign_sgd':
         from optim.sign_sgd import signSGD
         sign_sgd_optimizer = signSGD(
             model.parameters(),
-            lr=cfg.lr,
+            lr=lr,
             momentum=cfg.momentum,
-            weight_decay=cfg.weight_decay, 
+            weight_decay=cfg.weight_decay,
             dual_decay=cfg.dual_decay
         )
         return sign_sgd_optimizer
-    
+
     elif cfg.optimizer == "sgd":
         from optim.sgd import SGD
         sgd_optimizer = SGD(
             model.parameters(),
-            lr=cfg.lr,
+            lr=lr,
             momentum=cfg.momentum,
-            weight_decay=cfg.weight_decay, 
+            weight_decay=cfg.weight_decay,
             dual_decay=cfg.dual_decay
         )
         return sgd_optimizer
-    
 
 
 
-    elif cfg.optimizer == "kj_muon":  
-        # just a sanity check to make sure same as keller jordan's 
+
+    elif cfg.optimizer == "kj_muon":
+        # just a sanity check to make sure same as keller jordan's
         from optim.kj_muon import Muon
         if cfg.seperate_biases:
             biases = []
@@ -84,10 +88,10 @@ def init_optimizer(cfg, model):
                     biases.append(param)
                 else:
                     non_biases.append(param)
-            
+
             muon_optimizer = Muon(
-                non_biases, 
-                lr=cfg.lr,
+                non_biases,
+                lr=lr,
                 momentum=cfg.momentum,
                 nesterov=cfg.nesterov,
                 ns_steps=cfg.ns_steps,
@@ -98,7 +102,7 @@ def init_optimizer(cfg, model):
                 return muon_optimizer
             adamw_optimizer = torch.optim.AdamW(
                 biases,
-                lr=cfg.lr,
+                lr=lr,
                 weight_decay=0.0,
                 betas = (cfg.beta1, cfg.beta2),
                 eps=cfg.eps
@@ -106,8 +110,8 @@ def init_optimizer(cfg, model):
             return muon_optimizer, adamw_optimizer
         else:
             muon_optimizer = Muon(
-                model.parameters(), 
-                lr=cfg.lr,
+                model.parameters(),
+                lr=lr,
                 momentum=cfg.momentum,
                 nesterov=cfg.nesterov,
                 ns_steps=cfg.ns_steps,
