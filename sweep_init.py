@@ -1,9 +1,8 @@
 """
-Local sweep: compares a grid of fixed LRs vs exact line search for GD and Muon.
-Results saved to sweep_results.json after each run (safe to interrupt and resume).
+Init sweep: normal (Kaiming) vs full_orthogonal init, for GD and Muon,
+each with a fixed best LR and line search.
 
-Usage:
-    conda run -n 310nets python3 sweep_local.py
+Results saved to sweep_init_results.json after each run.
 """
 import json
 import os
@@ -24,33 +23,33 @@ from engine import Engine
 from models import build_model
 
 # ── sweep config ──────────────────────────────────────────────────────────────
-SEED      = 42
-ITERS     = 100
-DATA_ROOT = None  # set to e.g. "/content/cifar10_5k" if data isn't in the default location
-LRS     = [5e-4, 1e-3, 2e-3, 5e-3, 3e-3, 1e-2, "line_search"]
+SEED       = 42
+ITERS      = 100
+DATA_ROOT  = None
 OPTIMIZERS = ["sgd", "muon"]
-OUT     = os.path.join(_HERE, "sweep_results.json")
+INITS      = ["normal", "full_orthogonal"]
+# One fixed LR per optimizer — set these from your first sweep results
+BEST_LRS   = {"sgd": 3e-3, "muon": 3e-3}
+LRS        = ["line_search"]   # will be extended with BEST_LRS per optimizer
+OUT        = os.path.join(_HERE, "sweep_init_results.json")
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def base_cfg(optimizer: str, lr) -> SimpleNamespace:
+def base_cfg(optimizer: str, lr, weight_init: str) -> SimpleNamespace:
     return SimpleNamespace(
-        # data
         dataset="cifar10_5k",
         data_root=DATA_ROOT,
         num_workers=0,
         batch_size="full",
         seed=SEED,
-        # model
         model="mlp_ortho",
         hidden_dim=1.5,
         output_dim=5,
         activation="relu",
-        weight_init="normal",
+        weight_init=weight_init,
         use_bias=False,
         seperate_biases=False,
         ortho_rank=None,
-        # optimizer
         optimizer=optimizer,
         lr=lr,
         momentum=0.0,
@@ -58,18 +57,13 @@ def base_cfg(optimizer: str, lr) -> SimpleNamespace:
         weight_decay=0.0,
         dual_decay=True,
         adjust_lr=False,
-        # muon-specific
         orthogonalize=True,
         ns_steps=5,
-        # adamw (used for biases with muon)
         beta1=0.9,
         beta2=0.999,
         eps=1e-8,
-        # line search
         line_search_bracket=4.0,
-        # loss
-        loss="cross_entropy",
-        # tracking (off for speed)
+        loss="mse",
         track_lipschitz=False,
         track_hessian=False,
         scheduler=None,
@@ -78,12 +72,12 @@ def base_cfg(optimizer: str, lr) -> SimpleNamespace:
     )
 
 
-def run_single(optimizer: str, lr) -> dict:
-    cfg = base_cfg(optimizer, lr)
+def run_single(optimizer: str, lr, weight_init: str) -> dict:
+    cfg = base_cfg(optimizer, lr, weight_init)
     lr_label = str(lr)
 
     print(f"\n{'='*60}")
-    print(f"  optimizer={optimizer}  lr={lr_label}")
+    print(f"  optimizer={optimizer}  lr={lr_label}  init={weight_init}")
     print(f"{'='*60}")
 
     torch.manual_seed(SEED)
@@ -96,13 +90,14 @@ def run_single(optimizer: str, lr) -> dict:
     result = {
         "optimizer": optimizer,
         "lr": lr_label,
+        "weight_init": weight_init,
         "iters": ITERS,
         "seed": SEED,
         "train_loss": [],
         "train_acc": [],
         "val_loss": [],
         "val_acc": [],
-        "found_lr": [],      # populated only when lr="line_search"
+        "found_lr": [],
         "iter_time_s": [],
     }
 
@@ -127,7 +122,6 @@ def run_single(optimizer: str, lr) -> dict:
         print(
             f"  [{i+1:3d}/{ITERS}] train_loss={metrics['loss']:.4f}"
             f"  val_loss={val_metrics['loss']:.4f}"
-            f"  acc={val_metrics['accuracy']:.3f}"
             + (f"  lr*={metrics['lr_line_search']:.4f}" if "lr_line_search" in metrics else "")
             + f"  ETA {eta:.0f}s"
         )
@@ -147,9 +141,12 @@ def load_existing() -> list:
     return []
 
 
-def already_done(results: list, optimizer: str, lr) -> bool:
+def already_done(results, optimizer, lr, weight_init) -> bool:
     lr_label = str(lr)
-    return any(r["optimizer"] == optimizer and r["lr"] == lr_label for r in results)
+    return any(
+        r["optimizer"] == optimizer and r["lr"] == lr_label and r["weight_init"] == weight_init
+        for r in results
+    )
 
 
 def main():
@@ -158,15 +155,17 @@ def main():
         print(f"Resuming — {len(results)} runs already in {OUT}")
 
     for optimizer in OPTIMIZERS:
-        for lr in LRS:
-            if already_done(results, optimizer, lr):
-                print(f"  skipping {optimizer} lr={lr} (already done)")
-                continue
-            result = run_single(optimizer, lr)
-            results.append(result)
-            with open(OUT, "w") as f:
-                json.dump(results, f, indent=2)
-            print(f"  saved → {OUT}")
+        lrs = [BEST_LRS[optimizer], "line_search"]
+        for weight_init in INITS:
+            for lr in lrs:
+                if already_done(results, optimizer, lr, weight_init):
+                    print(f"  skipping {optimizer} lr={lr} init={weight_init}")
+                    continue
+                result = run_single(optimizer, lr, weight_init)
+                results.append(result)
+                with open(OUT, "w") as f:
+                    json.dump(results, f, indent=2)
+                print(f"  saved → {OUT}")
 
     print(f"\nDone. {len(results)} runs in {OUT}")
 
@@ -178,7 +177,7 @@ try:
     from google.colab import drive
     drive.mount('/content/drive')
     import shutil
-    shutil.copy(OUT, '/content/drive/MyDrive/sweep_results.json')
-    print("Saved to Google Drive: MyDrive/sweep_results.json")
+    shutil.copy(OUT, '/content/drive/MyDrive/muon_ls_exp/sweep_init_results.json')
+    print("Saved to Drive: sweep_init_results.json")
 except ImportError:
     pass

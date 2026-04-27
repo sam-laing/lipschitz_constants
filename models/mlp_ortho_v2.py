@@ -55,7 +55,7 @@ def orthogonal_init_(tensor: torch.Tensor, gain: float = 1.0) -> torch.Tensor:
         if tensor.ndim < 2:
             raise ValueError("Orthogonal init requires ndim >= 2")
         
-        rows, cols = tensor.shape[0], tensor[1]
+        rows, cols = tensor.shape[0], tensor.shape[1]
         Q = _orthogonal_matrix(rows, cols, device=tensor.device, dtype=tensor.dtype)
         tensor.copy_(gain * Q)
     return tensor
