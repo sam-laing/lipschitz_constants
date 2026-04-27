@@ -19,7 +19,7 @@ from models import build_model
 # ── sweep config ──────────────────────────────────────────────────────────────
 SEED    = 42
 ITERS   = 100
-LRS     = [5e-4, 1e-3, 2e-3, 5e-3, e-3, 1e-2, "line_search"]
+LRS     = [5e-4, 1e-3, 2e-3, 5e-3, 3e-3, 1e-2, "line_search"]
 OPTIMIZERS = ["sgd", "muon"]
 OUT     = os.path.join(os.path.dirname(__file__), "sweep_results.json")
 # ─────────────────────────────────────────────────────────────────────────────
