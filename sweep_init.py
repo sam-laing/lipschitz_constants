@@ -26,11 +26,9 @@ from models import build_model
 SEED       = 42
 ITERS      = 100
 DATA_ROOT  = None
-OPTIMIZERS = ["sgd", "muon"]
+OPTIMIZERS = ["muon"]
 INITS      = ["normal", "full_orthogonal"]
-# One fixed LR per optimizer — set these from your first sweep results
-BEST_LRS   = {"sgd": 3e-3, "muon": 3e-3}
-LRS        = ["line_search"]   # will be extended with BEST_LRS per optimizer
+LRS        = [1e-3, 2e-3, 5e-3, "line_search"]
 OUT        = os.path.join(_HERE, "sweep_init_results.json")
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -155,9 +153,8 @@ def main():
         print(f"Resuming — {len(results)} runs already in {OUT}")
 
     for optimizer in OPTIMIZERS:
-        lrs = [BEST_LRS[optimizer], "line_search"]
         for weight_init in INITS:
-            for lr in lrs:
+            for lr in LRS:
                 if already_done(results, optimizer, lr, weight_init):
                     print(f"  skipping {optimizer} lr={lr} init={weight_init}")
                     continue
@@ -168,6 +165,7 @@ def main():
                 print(f"  saved → {OUT}")
 
     print(f"\nDone. {len(results)} runs in {OUT}")
+    return results
 
 
 if __name__ == "__main__":

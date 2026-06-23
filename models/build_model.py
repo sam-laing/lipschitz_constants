@@ -1,15 +1,28 @@
-import torch 
+import torch
+
+_INPUT_DIMS = {
+    'cifar10_5k': 32 * 32 * 3,
+    'cifar10':    32 * 32 * 3,
+    'mnist_5k':   28 * 28,
+    'fmnist_5k':  28 * 28,
+}
+_OUTPUT_DIMS = {
+    'cifar10': 10,
+}
+
+def _input_dim(cfg):
+    return _INPUT_DIMS.get(cfg.dataset, 32 * 32 * 3)
+
+def _output_dim(cfg):
+    return _OUTPUT_DIMS.get(cfg.dataset, 5)
 
 
 def build_model(cfg):
     if cfg.model == 'mlp':
         from .mlp import MLP
-        # will probably add datasets so these numbers won't be hardcoded later
-        input_dim = 32 * 32 * 3  
-        hidden_dim = int(input_dim * cfg.hidden_dim)  
-        output_dim = 5 
-        if cfg.dataset == 'cifar10':
-            output_dim = 10
+        input_dim = _input_dim(cfg)
+        hidden_dim = int(input_dim * cfg.hidden_dim)
+        output_dim = _output_dim(cfg)
 
         return MLP(
             input_dim=input_dim,
@@ -18,12 +31,12 @@ def build_model(cfg):
             activation=cfg.activation if hasattr(cfg, 'activation') else 'relu',
             seperate_biases=cfg.seperate_biases,
         )
-    
+
     elif cfg.model == 'mlp_ortho':
         from .mlp_ortho import MLP
-        input_dim = 32 * 32 * 3  
-        hidden_dim = int(input_dim * cfg.hidden_dim)  
-        output_dim = 5 
+        input_dim = _input_dim(cfg)
+        hidden_dim = int(input_dim * cfg.hidden_dim)
+        output_dim = _output_dim(cfg)
         if cfg.dataset == 'cifar10':
             output_dim = 10
 
@@ -41,10 +54,8 @@ def build_model(cfg):
     
     elif cfg.model == 'linear_regression':
         from .linear_regression import LinearRegression
-        input_dim = 32 * 32 * 3  
-        output_dim = 5
-        if cfg.dataset == 'cifar10':
-            output_dim = 10
+        input_dim = _input_dim(cfg)
+        output_dim = _output_dim(cfg)
 
         ortho_rank = getattr(cfg, 'ortho_rank', None)
         return LinearRegression(
@@ -63,11 +74,9 @@ def build_model(cfg):
     
     elif cfg.model == 'mlp_ortho_v2':
         from .mlp_ortho_v2 import MLP
-        input_dim = 32 * 32 * 3  
-        hidden_dim = int(input_dim * cfg.hidden_dim)  
-        output_dim = 5 
-        if cfg.dataset == 'cifar10':
-            output_dim = 10
+        input_dim = _input_dim(cfg)
+        hidden_dim = int(input_dim * cfg.hidden_dim)
+        output_dim = _output_dim(cfg)
 
         return MLP(
             input_dim=input_dim,
